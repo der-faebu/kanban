@@ -13,6 +13,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardAssignee> CardAssignees => Set<CardAssignee>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
+    public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -94,5 +96,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany(l => l.Cards)
             .HasForeignKey(cl => cl.LabelId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Comment>()
+            .HasOne(c => c.Card)
+            .WithMany()
+            .HasForeignKey(c => c.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Comment>()
+            .HasOne(c => c.Author)
+            .WithMany()
+            .HasForeignKey(c => c.AuthorId)
+            .IsRequired();
+
+        builder.Entity<ChecklistItem>()
+            .HasOne(i => i.Card)
+            .WithMany()
+            .HasForeignKey(i => i.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChecklistItem>()
+            .HasIndex(i => new { i.CardId, i.Position });
     }
 }

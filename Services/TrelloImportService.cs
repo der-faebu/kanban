@@ -93,6 +93,7 @@ public class TrelloImportService(IDbContextFactory<ApplicationDbContext> context
 
             // Create cards
             var cardsImported = 0;
+            var cardMap = new Dictionary<string, Card>();
             foreach (var trelloCard in trelloBoard.Cards.OrderBy(c => c.Pos))
             {
                 if (!string.IsNullOrEmpty(trelloCard.IdList) && listMap.TryGetValue(trelloCard.IdList, out var list))
@@ -111,6 +112,8 @@ public class TrelloImportService(IDbContextFactory<ApplicationDbContext> context
                     context.Cards.Add(card);
                     await context.SaveChangesAsync();
                     cardsImported++;
+                    if (!string.IsNullOrEmpty(trelloCard.Id))
+                        cardMap[trelloCard.Id] = card;
 
                     // Add assignees
                     foreach (var memberId in trelloCard.IdMembers)
@@ -144,6 +147,58 @@ public class TrelloImportService(IDbContextFactory<ApplicationDbContext> context
                     await context.SaveChangesAsync();
                 }
             }
+
+            // Import comments from "commentCard" actions
+            foreach (var action in trelloBoard.Actions)
+            {
+                if (action.Type != "commentCard" || action.Data?.Card?.Id == null || action.Data.Text == null)
+                    continue;
+
+                if (!cardMap.TryGetValue(action.Data.Card.Id, out var card))
+                    continue;
+
+                var authorId = userId;
+                if (action.MemberCreator?.Id != null && userMap.TryGetValue(action.MemberCreator.Id, out var author))
+                    authorId = author.Id;
+
+                context.Comments.Add(new Comment
+                {
+                    CardId = card.Id,
+                    AuthorId = authorId,
+                    Text = action.Data.Text,
+                    IsDeleted = false,
+                    CreatedAt = action.Date ?? DateTime.UtcNow,
+                    UpdatedAt = action.Date ?? DateTime.UtcNow
+                });
+            }
+            await context.SaveChangesAsync();
+
+            // Import checklist items, flattening Trello's multi-checklist-per-card model into
+            // this app's single flat checklist per card, checklist-by-checklist in Trello's order.
+            foreach (var cardGroup in trelloBoard.Checklists
+                         .Where(cl => !string.IsNullOrEmpty(cl.IdCard) && cardMap.ContainsKey(cl.IdCard))
+                         .GroupBy(cl => cl.IdCard!))
+            {
+                var card = cardMap[cardGroup.Key];
+                var position = 0;
+                foreach (var checklist in cardGroup.OrderBy(cl => cl.Pos))
+                {
+                    foreach (var checkItem in checklist.CheckItems.OrderBy(ci => ci.Pos))
+                    {
+                        if (string.IsNullOrEmpty(checkItem.Name))
+                            continue;
+
+                        context.ChecklistItems.Add(new ChecklistItem
+                        {
+                            CardId = card.Id,
+                            Text = checkItem.Name,
+                            IsDone = checkItem.State == "complete",
+                            Position = position++
+                        });
+                    }
+                }
+            }
+            await context.SaveChangesAsync();
 
             await transaction.CommitAsync();
 

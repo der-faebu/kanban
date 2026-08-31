@@ -86,6 +86,8 @@ builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<ILabelService, LabelService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
 builder.Services.AddScoped<DragDropState>();
@@ -125,6 +127,8 @@ app.MapBoardEndpoints();
 app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
+app.MapCommentEndpoints();
+app.MapChecklistEndpoints();
 app.MapTrelloImportEndpoints();
 
 // Map SignalR hubs

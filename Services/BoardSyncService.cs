@@ -19,6 +19,13 @@ public interface IBoardSyncService
     Task BroadcastLabelRemovedAsync(int boardId, int cardId, int labelId);
     Task BroadcastLabelCreatedAsync(int boardId, int labelId, string name, string color);
     Task BroadcastLabelDeletedAsync(int boardId, int labelId);
+    Task BroadcastCommentAddedAsync(int boardId, int cardId, int commentId, string authorId, string text, DateTime createdAt);
+    Task BroadcastCommentUpdatedAsync(int boardId, int cardId, int commentId, string text, DateTime updatedAt);
+    Task BroadcastCommentDeletedAsync(int boardId, int cardId, int commentId);
+    Task BroadcastChecklistItemAddedAsync(int boardId, int cardId, int itemId, string text, int position);
+    Task BroadcastChecklistItemUpdatedAsync(int boardId, int cardId, int itemId, string text, bool isDone);
+    Task BroadcastChecklistItemDeletedAsync(int boardId, int cardId, int itemId);
+    Task BroadcastChecklistReorderedAsync(int boardId, int cardId, List<(int ItemId, int Position)> positions);
 }
 
 public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSyncService
@@ -105,5 +112,51 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("LabelDeleted", new { labelId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCommentAddedAsync(int boardId, int cardId, int commentId, string authorId, string text, DateTime createdAt)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CommentAdded", new { cardId, commentId, authorId, text, createdAt, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCommentUpdatedAsync(int boardId, int cardId, int commentId, string text, DateTime updatedAt)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CommentUpdated", new { cardId, commentId, text, updatedAt, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCommentDeletedAsync(int boardId, int cardId, int commentId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CommentDeleted", new { cardId, commentId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastChecklistItemAddedAsync(int boardId, int cardId, int itemId, string text, int position)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ChecklistItemAdded", new { cardId, itemId, text, position, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastChecklistItemUpdatedAsync(int boardId, int cardId, int itemId, string text, bool isDone)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ChecklistItemUpdated", new { cardId, itemId, text, isDone, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastChecklistItemDeletedAsync(int boardId, int cardId, int itemId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ChecklistItemDeleted", new { cardId, itemId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastChecklistReorderedAsync(int boardId, int cardId, List<(int ItemId, int Position)> positions)
+    {
+        // System.Text.Json only serializes public properties, not the public fields ValueTuple
+        // exposes, so the tuples are mapped to named objects here before going out over SignalR
+        // (the tuple shape is kept on the service signature to mirror ICardService's convention).
+        var payload = positions.Select(p => new { itemId = p.ItemId, position = p.Position });
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ChecklistReordered", new { cardId, positions = payload, timestamp = DateTime.UtcNow });
     }
 }

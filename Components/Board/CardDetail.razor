@@ -102,6 +102,80 @@ else
                 }
             </select>
         </div>
+
+        <div class="field">
+            <label>Checklist (@checklistDoneCount/@checklistItems.Count)</label>
+            <div class="checklist-list">
+                @foreach (var item in checklistItems.OrderBy(i => i.Position))
+                {
+                    <div class="checklist-item" draggable="true"
+                         @ondragstart="() => HandleChecklistDragStart(item)"
+                         @ondragover="(DragEventArgs _) => { }" @ondragover:preventDefault="true"
+                         @ondrop="() => HandleChecklistDrop(item)">
+                        <input type="checkbox" checked="@item.IsDone" @onchange="e => ToggleChecklistItem(item.Id, (bool)e.Value!)" />
+
+                        @if (editingChecklistItemId == item.Id)
+                        {
+                            <input type="text" @bind="editingChecklistItemText" @onblur="() => SaveChecklistItemEdit(item.Id)" />
+                        }
+                        else
+                        {
+                            <span class="checklist-item-text @(item.IsDone ? "done" : "")" @onclick="() => StartChecklistItemEdit(item)">@item.Text</span>
+                        }
+
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteChecklistItem(item.Id)">&times;</button>
+                    </div>
+                }
+            </div>
+
+            <input type="text" @bind="newChecklistItemText" @bind:event="oninput" placeholder="Add checklist item" @onkeydown="HandleChecklistItemKeyDown" />
+            <button type="button" class="btn btn-sm btn-primary" @onclick="AddChecklistItem" disabled="@string.IsNullOrWhiteSpace(newChecklistItemText)">Add item</button>
+        </div>
+
+        <div class="field">
+            <label>Comments (@comments.Count)</label>
+            <div class="comment-list">
+                @foreach (var comment in comments)
+                {
+                    <div class="comment">
+                        <div class="comment-meta">
+                            <strong>@AuthorName(comment.AuthorId)</strong>
+                            <span class="comment-time">@comment.CreatedAt.ToLocalTime().ToString("g")</span>
+                            @if (comment.UpdatedAt > comment.CreatedAt)
+                            {
+                                <span class="comment-edited">(edited)</span>
+                            }
+                        </div>
+
+                        @if (editingCommentId == comment.Id)
+                        {
+                            <textarea @bind="editingCommentText" rows="2"></textarea>
+                            <div class="comment-actions">
+                                <button type="button" class="btn btn-sm btn-primary" @onclick="() => SaveCommentEdit(comment.Id)">Save</button>
+                                <button type="button" class="btn btn-sm btn-secondary" @onclick="CancelCommentEdit">Cancel</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="comment-text">@comment.Text</p>
+                            <div class="comment-actions">
+                                @if (comment.AuthorId == userId)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartCommentEdit(comment)">Edit</button>
+                                }
+                                @if (comment.AuthorId == userId || isOwner)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteComment(comment.Id)">Delete</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <textarea @bind="newCommentText" placeholder="Write a comment..." rows="2"></textarea>
+            <button type="button" class="btn btn-sm btn-primary" @onclick="PostComment" disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</button>
+        </div>
     </div>
 }
 
@@ -208,6 +282,73 @@ else
         margin: 60px auto;
         text-align: center;
     }
+
+    .comment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .comment {
+        background: #f8f9fa;
+        border-radius: 6px;
+        padding: 8px 10px;
+    }
+
+    .comment-meta {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+        display: flex;
+        gap: 6px;
+        align-items: baseline;
+    }
+
+    .comment-edited {
+        font-style: italic;
+    }
+
+    .comment-text {
+        margin: 0 0 6px 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .comment-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .checklist-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+        border-radius: 4px;
+        cursor: grab;
+    }
+
+    .checklist-item:hover {
+        background: #f8f9fa;
+    }
+
+    .checklist-item-text {
+        flex: 1;
+        cursor: text;
+    }
+
+    .checklist-item-text.done {
+        text-decoration: line-through;
+        color: #999;
+    }
 </style>
 
 @code {
@@ -225,6 +366,12 @@ else
 
     [Inject]
     private IBoardService BoardService { get; set; } = null!;
+
+    [Inject]
+    private ICommentService CommentService { get; set; } = null!;
+
+    [Inject]
+    private IChecklistService ChecklistService { get; set; } = null!;
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
@@ -250,6 +397,19 @@ else
 
     private string newLabelName = string.Empty;
     private string newLabelColor = LabelSwatches.Colors[0];
+
+    private List<Comment> comments = [];
+    private Dictionary<string, string> authorNames = new();
+    private string newCommentText = string.Empty;
+    private int? editingCommentId;
+    private string editingCommentText = string.Empty;
+
+    private List<ChecklistItem> checklistItems = [];
+    private int checklistDoneCount => checklistItems.Count(i => i.IsDone);
+    private string newChecklistItemText = string.Empty;
+    private int? editingChecklistItemId;
+    private string editingChecklistItemText = string.Empty;
+    private int? draggedChecklistItemId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -297,6 +457,16 @@ else
             cardAssignees = await CardService.GetCardAssigneesAsync(CardId, userId);
             boardMembers = await BoardService.GetBoardMembersAsync(BoardId, userId);
             isOwner = await BoardService.IsUserBoardOwnerAsync(BoardId, userId);
+            comments = await CommentService.GetCardCommentsAsync(CardId, userId);
+            checklistItems = await ChecklistService.GetItemsAsync(CardId, userId);
+
+            authorNames = boardMembers
+                .Where(m => m.User != null)
+                .ToDictionary(m => m.UserId, m => m.User!.UserName ?? m.User!.Email ?? m.UserId);
+            foreach (var assignee in cardAssignees)
+            {
+                authorNames[assignee.Id] = assignee.UserName ?? assignee.Email ?? assignee.Id;
+            }
         }
         catch (Exception ex)
         {
@@ -318,6 +488,13 @@ else
         hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AssigneeAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AssigneeRemoved", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CommentAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CommentUpdated", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CommentDeleted", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ChecklistItemAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ChecklistItemUpdated", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ChecklistItemDeleted", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ChecklistReordered", async data => await RefreshIfForThisCard(data));
         // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
         hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
         hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
@@ -454,6 +631,172 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"Error removing assignee: {ex.Message}");
+        }
+    }
+
+    private string AuthorName(string authorId) => authorNames.TryGetValue(authorId, out var name) ? name : authorId;
+
+    private async Task AddChecklistItem()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newChecklistItemText)) return;
+        try
+        {
+            await ChecklistService.AddItemAsync(CardId, userId, newChecklistItemText);
+            newChecklistItemText = string.Empty;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding checklist item: {ex.Message}");
+        }
+    }
+
+    private async Task HandleChecklistItemKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AddChecklistItem();
+        }
+    }
+
+    private async Task ToggleChecklistItem(int itemId, bool isDone)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await ChecklistService.ToggleItemAsync(itemId, userId, isDone);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling checklist item: {ex.Message}");
+        }
+    }
+
+    private void StartChecklistItemEdit(ChecklistItem item)
+    {
+        editingChecklistItemId = item.Id;
+        editingChecklistItemText = item.Text;
+    }
+
+    private async Task SaveChecklistItemEdit(int itemId)
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(editingChecklistItemText))
+        {
+            editingChecklistItemId = null;
+            return;
+        }
+        try
+        {
+            await ChecklistService.UpdateItemTextAsync(itemId, userId, editingChecklistItemText);
+            editingChecklistItemId = null;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error editing checklist item: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteChecklistItem(int itemId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await ChecklistService.DeleteItemAsync(itemId, userId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting checklist item: {ex.Message}");
+        }
+    }
+
+    private void HandleChecklistDragStart(ChecklistItem item)
+    {
+        draggedChecklistItemId = item.Id;
+    }
+
+    private async Task HandleChecklistDrop(ChecklistItem targetItem)
+    {
+        if (string.IsNullOrEmpty(userId) || draggedChecklistItemId == null || draggedChecklistItemId == targetItem.Id)
+            return;
+
+        var ordered = checklistItems.OrderBy(i => i.Position).ToList();
+        var dragged = ordered.FirstOrDefault(i => i.Id == draggedChecklistItemId);
+        if (dragged == null) return;
+
+        ordered.Remove(dragged);
+        var targetIndex = ordered.FindIndex(i => i.Id == targetItem.Id);
+        ordered.Insert(targetIndex, dragged);
+
+        var positions = ordered.Select((item, index) => (item.Id, index)).ToList();
+
+        try
+        {
+            await ChecklistService.ReorderItemsAsync(CardId, userId, positions);
+            draggedChecklistItemId = null;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reordering checklist items: {ex.Message}");
+        }
+    }
+
+    private async Task PostComment()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newCommentText)) return;
+        try
+        {
+            await CommentService.AddCommentAsync(CardId, userId, newCommentText);
+            newCommentText = string.Empty;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error posting comment: {ex.Message}");
+        }
+    }
+
+    private void StartCommentEdit(Comment comment)
+    {
+        editingCommentId = comment.Id;
+        editingCommentText = comment.Text;
+    }
+
+    private void CancelCommentEdit()
+    {
+        editingCommentId = null;
+        editingCommentText = string.Empty;
+    }
+
+    private async Task SaveCommentEdit(int commentId)
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(editingCommentText)) return;
+        try
+        {
+            await CommentService.UpdateCommentAsync(commentId, userId, editingCommentText);
+            CancelCommentEdit();
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error editing comment: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteComment(int commentId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CommentService.DeleteCommentAsync(commentId, userId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting comment: {ex.Message}");
         }
     }
 

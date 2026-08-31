@@ -9,4 +9,6 @@ public class TrelloBoard
     public List<TrelloCard> Cards { get; set; } = [];
     public List<TrelloLabel> Labels { get; set; } = [];
     public List<TrelloMember> Members { get; set; } = [];
+    public List<TrelloAction> Actions { get; set; } = [];
+    public List<TrelloChecklist> Checklists { get; set; } = [];
 }

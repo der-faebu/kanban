@@ -228,6 +228,166 @@ public class TrelloImportTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task ImportTrello_WithCommentActions_CreatesComments()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Import Test", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        var trelloJson = CreateTrelloJsonWithComment("Looks great, ship it");
+        using var content = new MultipartFormDataContent();
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(trelloJson));
+        content.Add(new StreamContent(stream), "file", "export.json");
+
+        var response = await _client.PostAsync($"/api/import/trello/{boardId}", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var comments = await dbContext.Comments.ToListAsync();
+
+            Assert.Single(comments);
+            Assert.Equal("Looks great, ship it", comments[0].Text);
+        }
+    }
+
+    private string CreateTrelloJsonWithComment(string commentText)
+    {
+        var trelloBoard = new
+        {
+            id = "board123",
+            name = "Test Board",
+            desc = "Test Description",
+            lists = new[]
+            {
+                new { id = "list1", name = "To Do", pos = 0 }
+            },
+            cards = new[]
+            {
+                new { id = "card1", name = "Card with Comment", desc = "Description", idList = "list1", pos = 0, due = (DateTime?)null, idMembers = new string[0], idLabels = new string[0] }
+            },
+            labels = new object[0],
+            members = new object[0],
+            actions = new[]
+            {
+                new
+                {
+                    id = "action1",
+                    type = "commentCard",
+                    date = DateTime.UtcNow,
+                    data = new
+                    {
+                        text = commentText,
+                        card = new { id = "card1" }
+                    },
+                    memberCreator = (object?)null
+                }
+            }
+        };
+
+        return JsonSerializer.Serialize(trelloBoard);
+    }
+
+    [Fact]
+    public async Task ImportTrello_WithChecklists_CreatesFlattenedOrderedItems()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Import Test", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        var trelloJson = CreateTrelloJsonWithChecklists();
+        using var content = new MultipartFormDataContent();
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(trelloJson));
+        content.Add(new StreamContent(stream), "file", "export.json");
+
+        var response = await _client.PostAsync($"/api/import/trello/{boardId}", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var items = await dbContext.ChecklistItems.OrderBy(i => i.Position).ToListAsync();
+
+            Assert.Equal(3, items.Count);
+            Assert.Equal("First checklist item A", items[0].Text);
+            Assert.False(items[0].IsDone);
+            Assert.Equal("First checklist item B", items[1].Text);
+            Assert.True(items[1].IsDone);
+            Assert.Equal("Second checklist item A", items[2].Text);
+            Assert.Equal(0, items[0].Position);
+            Assert.Equal(1, items[1].Position);
+            Assert.Equal(2, items[2].Position);
+        }
+    }
+
+    private string CreateTrelloJsonWithChecklists()
+    {
+        var trelloBoard = new
+        {
+            id = "board123",
+            name = "Test Board",
+            desc = "Test Description",
+            lists = new[]
+            {
+                new { id = "list1", name = "To Do", pos = 0 }
+            },
+            cards = new[]
+            {
+                new { id = "card1", name = "Card with Checklists", desc = "Description", idList = "list1", pos = 0, due = (DateTime?)null, idMembers = new string[0], idLabels = new string[0] }
+            },
+            labels = new object[0],
+            members = new object[0],
+            checklists = new[]
+            {
+                new
+                {
+                    id = "checklist1",
+                    name = "First checklist",
+                    idCard = "card1",
+                    pos = 0,
+                    checkItems = new[]
+                    {
+                        new { id = "item1", name = "First checklist item A", state = "incomplete", pos = 0 },
+                        new { id = "item2", name = "First checklist item B", state = "complete", pos = 1 }
+                    }
+                },
+                new
+                {
+                    id = "checklist2",
+                    name = "Second checklist",
+                    idCard = "card1",
+                    pos = 1,
+                    checkItems = new[]
+                    {
+                        new { id = "item3", name = "Second checklist item A", state = "incomplete", pos = 0 }
+                    }
+                }
+            }
+        };
+
+        return JsonSerializer.Serialize(trelloBoard);
+    }
+
     private string CreateValidTrelloJson()
     {
         var trelloBoard = new

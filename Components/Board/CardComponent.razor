@@ -13,7 +13,7 @@
         {
             <small class="due-date">Due: @Card.DueDate.Value.ToShortDateString()</small>
         }
-        @if (labels.Count > 0 || assignees.Count > 0)
+        @if (labels.Count > 0 || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0)
         {
             <div class="badge-row">
                 @foreach (var label in labels)
@@ -23,6 +23,14 @@
                 @foreach (var assignee in assignees)
                 {
                     <span class="assignee-badge" title="@(assignee.UserName ?? assignee.Email)">@Initials(assignee)</span>
+                }
+                @if (commentCount > 0)
+                {
+                    <span class="comment-count-badge" title="@commentCount comment(s)">💬 @commentCount</span>
+                }
+                @if (checklistTotal > 0)
+                {
+                    <span class="comment-count-badge" title="Checklist progress">☑ @checklistDone/@checklistTotal</span>
                 }
             </div>
         }
@@ -119,6 +127,11 @@
         font-size: 9px;
         font-weight: 600;
     }
+
+    .comment-count-badge {
+        font-size: 11px;
+        color: #666;
+    }
 </style>
 
 @code {
@@ -138,6 +151,12 @@
     private ICardService CardService { get; set; } = null!;
 
     [Inject]
+    private ICommentService CommentService { get; set; } = null!;
+
+    [Inject]
+    private IChecklistService ChecklistService { get; set; } = null!;
+
+    [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
     [Inject]
@@ -149,6 +168,9 @@
     private string? userId;
     private List<Label> labels = [];
     private List<ApplicationUser> assignees = [];
+    private int commentCount;
+    private int checklistDone;
+    private int checklistTotal;
 
     protected override async Task OnInitializedAsync()
     {
@@ -170,6 +192,8 @@
         {
             labels = await CardService.GetCardLabelsAsync(Card.Id, userId);
             assignees = await CardService.GetCardAssigneesAsync(Card.Id, userId);
+            commentCount = await CommentService.GetCardCommentCountAsync(Card.Id, userId);
+            (checklistDone, checklistTotal) = await ChecklistService.GetChecklistProgressAsync(Card.Id, userId);
         }
         catch (Exception ex)
         {

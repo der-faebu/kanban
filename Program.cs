@@ -6,6 +6,7 @@ using Kanban.Components.Account;
 using Kanban.Data;
 using Kanban.Services;
 using Kanban.Endpoints;
+using Kanban.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,10 +41,13 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+builder.Services.AddSignalR();
+
 builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<ILabelService, LabelService>();
+builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 
 var app = builder.Build();
 
@@ -75,6 +79,9 @@ app.MapBoardEndpoints();
 app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
+
+// Map SignalR hubs
+app.MapHub<BoardSyncHub>("/sync");
 
 app.Run();
 

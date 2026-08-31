@@ -22,7 +22,7 @@ public interface ICardService
     Task<List<Label>> GetCardLabelsAsync(int cardId, string userId);
 }
 
-public class CardService(ApplicationDbContext context, IListService listService) : ICardService
+public class CardService(ApplicationDbContext context, IListService listService, IBoardSyncService boardSyncService) : ICardService
 {
     public async Task<Card> CreateCardAsync(int listId, string userId, string title, string description)
     {
@@ -49,6 +49,7 @@ public class CardService(ApplicationDbContext context, IListService listService)
 
         context.Cards.Add(card);
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardCreatedAsync(list.BoardId, card.Id, card.Title, card.ListId);
         return card;
     }
 
@@ -88,11 +89,13 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
         card.Title = title;
         card.Description = description;
         card.DueDate = dueDate;
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardUpdatedAsync(boardId, cardId, title, description, dueDate);
     }
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)
@@ -109,10 +112,13 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
+        var sourceListId = card.ListId;
         card.ListId = targetListId;
         card.Position = position;
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardMovedAsync(boardId, cardId, sourceListId, targetListId, position);
     }
 
     public async Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions)
@@ -152,9 +158,11 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
         card.IsDeleted = true;
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardDeletedAsync(boardId, cardId);
     }
 
     public async Task RestoreCardAsync(int cardId, string userId)
@@ -190,9 +198,11 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (existing != null)
             return;
 
+        var boardId = card.List.BoardId;
         var cardAssignee = new CardAssignee { CardId = cardId, UserId = assigneeUserId };
         context.CardAssignees.Add(cardAssignee);
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastAssigneeAddedAsync(boardId, cardId, assigneeUserId);
     }
 
     public async Task RemoveAssigneeAsync(int cardId, string userId, string assigneeUserId)
@@ -205,11 +215,13 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
         var cardAssignee = await context.CardAssignees.FirstOrDefaultAsync(ca => ca.CardId == cardId && ca.UserId == assigneeUserId);
         if (cardAssignee != null)
         {
             context.CardAssignees.Remove(cardAssignee);
             await context.SaveChangesAsync();
+            await boardSyncService.BroadcastAssigneeRemovedAsync(boardId, cardId, assigneeUserId);
         }
     }
 
@@ -247,9 +259,11 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (existing != null)
             return;
 
+        var boardId = card.List.BoardId;
         var cardLabel = new CardLabel { CardId = cardId, LabelId = labelId };
         context.CardLabels.Add(cardLabel);
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastLabelAddedAsync(boardId, cardId, labelId);
     }
 
     public async Task RemoveLabelAsync(int cardId, string userId, int labelId)
@@ -262,11 +276,13 @@ public class CardService(ApplicationDbContext context, IListService listService)
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
         var cardLabel = await context.CardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
         if (cardLabel != null)
         {
             context.CardLabels.Remove(cardLabel);
             await context.SaveChangesAsync();
+            await boardSyncService.BroadcastLabelRemovedAsync(boardId, cardId, labelId);
         }
     }
 

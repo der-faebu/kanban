@@ -16,7 +16,7 @@ public interface IListService
     Task<bool> IsUserBoardMemberAsync(int boardId, string userId);
 }
 
-public class ListService(ApplicationDbContext context, IBoardService boardService) : IListService
+public class ListService(ApplicationDbContext context, IBoardService boardService, IBoardSyncService boardSyncService) : IListService
 {
     public async Task<List> CreateListAsync(int boardId, string userId, string name)
     {
@@ -40,6 +40,7 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
 
         context.Lists.Add(list);
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastListCreatedAsync(boardId, list.Id, list.Name);
 
         return list;
     }
@@ -81,9 +82,11 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = list.BoardId;
         list.Name = newName;
         list.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastListUpdatedAsync(boardId, listId, newName);
     }
 
     public async Task ReorderListsAsync(int boardId, string userId, List<(int ListId, int Position)> positions)
@@ -107,6 +110,7 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
         }
 
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastListReorderedAsync(boardId, positions);
     }
 
     public async Task SoftDeleteListAsync(int listId, string userId)
@@ -120,9 +124,11 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = list.BoardId;
         list.IsDeleted = true;
         list.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastListDeletedAsync(boardId, listId);
     }
 
     public async Task RestoreListAsync(int listId, string userId)

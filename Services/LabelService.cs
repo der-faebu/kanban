@@ -11,7 +11,7 @@ public interface ILabelService
     Task DeleteLabelAsync(int labelId, string userId);
 }
 
-public class LabelService(ApplicationDbContext context, IListService listService) : ILabelService
+public class LabelService(ApplicationDbContext context, IListService listService, IBoardSyncService boardSyncService) : ILabelService
 {
     public async Task<Label> CreateLabelAsync(int boardId, string userId, string name, string color)
     {
@@ -33,6 +33,7 @@ public class LabelService(ApplicationDbContext context, IListService listService
 
         context.Labels.Add(label);
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastLabelCreatedAsync(boardId, label.Id, label.Name, label.Color);
         return label;
     }
 
@@ -61,8 +62,10 @@ public class LabelService(ApplicationDbContext context, IListService listService
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = label.BoardId;
         label.IsDeleted = true;
         label.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+        await boardSyncService.BroadcastLabelDeletedAsync(boardId, labelId);
     }
 }

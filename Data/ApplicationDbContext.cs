@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardMember> BoardMembers => Set<BoardMember>();
     public DbSet<List> Lists => Set<List>();
+    public DbSet<Card> Cards => Set<Card>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -44,5 +45,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<List>()
             .HasIndex(l => new { l.BoardId, l.Position });
+
+        builder.Entity<List>()
+            .HasMany(l => l.Cards)
+            .WithOne(c => c.List)
+            .HasForeignKey(c => c.ListId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Card>()
+            .HasIndex(c => new { c.ListId, c.Position });
     }
 }

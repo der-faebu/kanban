@@ -154,6 +154,44 @@ namespace Kanban.Migrations
                     b.ToTable("BoardMembers");
                 });
 
+            modelBuilder.Entity("Kanban.Data.Entities.Card", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ListId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListId", "Position");
+
+                    b.ToTable("Cards");
+                });
+
             modelBuilder.Entity("Kanban.Data.Entities.List", b =>
                 {
                     b.Property<int>("Id")
@@ -354,6 +392,17 @@ namespace Kanban.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Kanban.Data.Entities.Card", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.List", "List")
+                        .WithMany("Cards")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("List");
+                });
+
             modelBuilder.Entity("Kanban.Data.Entities.List", b =>
                 {
                     b.HasOne("Kanban.Data.Entities.Board", "Board")
@@ -421,6 +470,11 @@ namespace Kanban.Migrations
                     b.Navigation("Lists");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.List", b =>
+                {
+                    b.Navigation("Cards");
                 });
 #pragma warning restore 612, 618
         }

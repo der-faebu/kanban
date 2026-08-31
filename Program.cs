@@ -42,6 +42,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<IListService, ListService>();
+builder.Services.AddScoped<ICardService, CardService>();
 
 var app = builder.Build();
 
@@ -71,6 +72,7 @@ app.MapAdditionalIdentityEndpoints();
 // Map API endpoints
 app.MapBoardEndpoints();
 app.MapListEndpoints();
+app.MapCardEndpoints();
 
 app.Run();
 

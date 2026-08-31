@@ -1,0 +1,193 @@
+@using Kanban.Services
+@using Kanban.Data.Entities
+
+<div class="list" draggable="true" @ondragstart="HandleListDragStart" @ondragend="HandleListDragEnd">
+    <div class="list-header">
+        <h2>@List.Name</h2>
+        <button @onclick="HandleDelete" class="btn btn-sm btn-danger">×</button>
+    </div>
+
+    <div class="cards-container" @ondragover="HandleCardDragOver" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
+        @if (cards != null)
+        {
+            @foreach (var card in cards.OrderBy(c => c.Position))
+            {
+                <CardComponent
+                    Card="card"
+                    ListId="List.Id"
+                    BoardId="BoardId"
+                    OnCardMoved="HandleCardMoved"
+                    @key="card.Id" />
+            }
+        }
+        <AddCardForm ListId="List.Id" OnCardAdded="HandleCardAdded" />
+    </div>
+</div>
+
+<style>
+    .list {
+        background: #f5f5f5;
+        border-radius: 8px;
+        min-width: 300px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        cursor: grab;
+        user-select: none;
+    }
+
+    .list:active {
+        cursor: grabbing;
+    }
+
+    .list.drag-over {
+        background: #e3f2fd;
+        border: 2px solid #2196f3;
+    }
+
+    .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .list-header h2 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 50px;
+    }
+
+    .cards-container.drag-over {
+        background: rgba(33, 150, 243, 0.1);
+        border-radius: 4px;
+        padding: 4px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public List List { get; set; } = null!;
+
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Parameter]
+    public EventCallback OnCardMoved { get; set; }
+
+    [Parameter]
+    public EventCallback OnListReordered { get; set; }
+
+    [Inject]
+    private IListService ListService { get; set; } = null!;
+
+    [Inject]
+    private ICardService CardService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private List<Card>? cards;
+    private string? userId;
+    private bool isDragOverCards = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        await LoadCards();
+    }
+
+    private async Task LoadCards()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        try
+        {
+            cards = await CardService.GetListCardsAsync(List.Id, userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading cards: {ex.Message}");
+        }
+    }
+
+    private void HandleListDragStart(DragEventArgs e)
+    {
+        e.DataTransfer.EffectAllowed = "move";
+        e.DataTransfer.SetData("listId", List.Id.ToString());
+    }
+
+    private void HandleListDragEnd(DragEventArgs e)
+    {
+    }
+
+    private void HandleCardDragOver(DragEventArgs e)
+    {
+        e.DataTransfer.DropEffect = "move";
+        e.PreventDefault();
+        isDragOverCards = true;
+    }
+
+    private void HandleCardDragLeave(DragEventArgs e)
+    {
+        isDragOverCards = false;
+    }
+
+    private async Task HandleCardDrop(DragEventArgs e)
+    {
+        isDragOverCards = false;
+        var cardIdStr = e.DataTransfer.GetData("cardId");
+        if (int.TryParse(cardIdStr, out var cardId) && !string.IsNullOrEmpty(userId))
+        {
+            try
+            {
+                var newPosition = cards?.Count ?? 0;
+                await CardService.MoveCardAsync(cardId, userId, List.Id, newPosition);
+                await LoadCards();
+                await OnCardMoved.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error moving card: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task HandleCardAdded()
+    {
+        await LoadCards();
+        StateHasChanged();
+    }
+
+    private async Task HandleCardMoved()
+    {
+        await LoadCards();
+        StateHasChanged();
+        await OnCardMoved.InvokeAsync();
+    }
+
+    private async Task HandleDelete()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            try
+            {
+                await ListService.SoftDeleteListAsync(List.Id, userId);
+                await OnListReordered.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting list: {ex.Message}");
+            }
+        }
+    }
+}

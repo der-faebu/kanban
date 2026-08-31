@@ -1,0 +1,225 @@
+@page "/board/{BoardId:int}"
+@using Kanban.Services
+@using Kanban.Data.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@attribute [StreamRendering(enabled: true)]
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+@if (board != null)
+{
+    <div class="board-container">
+        <div class="board-header">
+            <h1>@board.Name</h1>
+            <p>@board.Description</p>
+        </div>
+
+        <div class="lists-container" ondragover="event.preventDefault()">
+            @if (lists != null)
+            {
+                @foreach (var list in lists.OrderBy(l => l.Position))
+                {
+                    <ListComponent
+                        List="list"
+                        BoardId="BoardId"
+                        OnCardMoved="HandleCardMoved"
+                        OnListReordered="HandleListReordered"
+                        @key="list.Id" />
+                }
+            }
+            <AddListForm BoardId="BoardId" OnListAdded="HandleListAdded" />
+        </div>
+    </div>
+}
+else if (loading)
+{
+    <p>Loading board...</p>
+}
+else
+{
+    <p>Board not found.</p>
+}
+
+<style>
+    .board-container {
+        padding: 20px;
+        min-height: 100vh;
+        background: #e9ecef;
+    }
+
+    .board-header {
+        margin-bottom: 20px;
+    }
+
+    .board-header h1 {
+        margin: 0 0 5px 0;
+        font-size: 28px;
+    }
+
+    .board-header p {
+        margin: 0;
+        color: #666;
+    }
+
+    .lists-container {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding: 10px 0;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Inject]
+    private IBoardService BoardService { get; set; } = null!;
+
+    [Inject]
+    private IListService ListService { get; set; } = null!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private Board? board;
+    private List<List>? lists;
+    private bool loading = true;
+    private string? userId;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            NavigationManager.NavigateTo("/Account/Login");
+            return;
+        }
+
+        await LoadBoardData();
+        await InitializeSignalR();
+        loading = false;
+    }
+
+    private async Task LoadBoardData()
+    {
+        try
+        {
+            board = await BoardService.GetBoardByIdAsync(BoardId, userId);
+            lists = await ListService.GetBoardListsAsync(BoardId, userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading board: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeSignalR()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/sync"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<dynamic>("CardCreated", async (data) => await OnCardCreated(data));
+        hubConnection.On<dynamic>("CardUpdated", async (data) => await OnCardUpdated(data));
+        hubConnection.On<dynamic>("CardMoved", async (data) => await OnCardMoved(data));
+        hubConnection.On<dynamic>("CardDeleted", async (data) => await OnCardDeleted(data));
+        hubConnection.On<dynamic>("ListCreated", async (data) => await OnListCreated(data));
+        hubConnection.On<dynamic>("ListUpdated", async (data) => await OnListUpdated(data));
+        hubConnection.On<dynamic>("ListReordered", async (data) => await OnListReordered(data));
+        hubConnection.On<dynamic>("ListDeleted", async (data) => await OnListDeleted(data));
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.InvokeAsync("JoinBoardGroup", BoardId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR connection error: {ex.Message}");
+        }
+    }
+
+    private async Task HandleCardMoved()
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task HandleListReordered()
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task HandleListAdded()
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnCardCreated(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnCardUpdated(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnCardMoved(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnCardDeleted(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnListCreated(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnListUpdated(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnListReordered(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnListDeleted(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

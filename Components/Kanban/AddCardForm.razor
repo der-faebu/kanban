@@ -1,0 +1,98 @@
+@using Kanban.Services
+
+<div class="add-card">
+    @if (!isAdding)
+    {
+        <button @onclick="ToggleForm" class="btn btn-sm btn-outline-secondary btn-add">+ Add Card</button>
+    }
+    else
+    {
+        <form @onsubmit="HandleSubmit">
+            <input type="text" @bind="title" placeholder="Card title" class="form-control form-control-sm mb-2" required />
+            <textarea @bind="description" placeholder="Description (optional)" class="form-control form-control-sm mb-2" rows="2"></textarea>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                <button type="button" @onclick="ToggleForm" class="btn btn-sm btn-secondary">Cancel</button>
+            </div>
+        </form>
+    }
+</div>
+
+<style>
+    .add-card {
+        padding: 8px;
+    }
+
+    .btn-add {
+        width: 100%;
+        text-align: left;
+        color: #666;
+    }
+
+    .btn-add:hover {
+        background: #f0f0f0;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .form-actions button {
+        flex: 1;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int ListId { get; set; }
+
+    [Parameter]
+    public EventCallback OnCardAdded { get; set; }
+
+    [Inject]
+    private ICardService CardService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private bool isAdding = false;
+    private string title = string.Empty;
+    private string description = string.Empty;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private void ToggleForm()
+    {
+        isAdding = !isAdding;
+        if (!isAdding)
+        {
+            title = string.Empty;
+            description = string.Empty;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            await CardService.CreateCardAsync(ListId, userId, title, description);
+            title = string.Empty;
+            description = string.Empty;
+            isAdding = false;
+            await OnCardAdded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating card: {ex.Message}");
+        }
+    }
+}

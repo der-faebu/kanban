@@ -1,0 +1,91 @@
+@using Kanban.Services
+
+<div class="add-list">
+    @if (!isAdding)
+    {
+        <button @onclick="ToggleForm" class="btn btn-outline-secondary">+ Add List</button>
+    }
+    else
+    {
+        <form @onsubmit="HandleSubmit">
+            <input type="text" @bind="name" placeholder="List name" class="form-control form-control-sm" required />
+            <div class="form-actions mt-2">
+                <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                <button type="button" @onclick="ToggleForm" class="btn btn-sm btn-secondary">Cancel</button>
+            </div>
+        </form>
+    }
+</div>
+
+<style>
+    .add-list {
+        min-width: 300px;
+        padding: 12px;
+        background: rgba(255,255,255,0.5);
+        border-radius: 8px;
+    }
+
+    .add-list button {
+        width: 100%;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .form-actions button {
+        flex: 1;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Parameter]
+    public EventCallback OnListAdded { get; set; }
+
+    [Inject]
+    private IListService ListService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private bool isAdding = false;
+    private string name = string.Empty;
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private void ToggleForm()
+    {
+        isAdding = !isAdding;
+        if (!isAdding)
+        {
+            name = string.Empty;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            await ListService.CreateListAsync(BoardId, userId, name);
+            name = string.Empty;
+            isAdding = false;
+            await OnListAdded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating list: {ex.Message}");
+        }
+    }
+}

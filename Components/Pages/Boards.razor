@@ -1,0 +1,167 @@
+@page "/boards"
+@using Kanban.Services
+@using Kanban.Data.Entities
+@attribute [Authorize]
+
+<PageTitle>Boards</PageTitle>
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>My Boards</h1>
+        </div>
+        <div class="col-md-4">
+            <button @onclick="ToggleNewBoardForm" class="btn btn-primary">+ New Board</button>
+        </div>
+    </div>
+
+    @if (showNewBoardForm)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Create New Board</h5>
+                <EditForm Model="newBoard" OnValidSubmit="HandleCreateBoard">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label">Board Name</label>
+                        <InputText @bind-Value="newBoard.Name" class="form-control" required />
+                        <ValidationMessage For="() => newBoard.Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <InputTextArea @bind-Value="newBoard.Description" class="form-control" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" @onclick="ToggleNewBoardForm" class="btn btn-secondary">Cancel</button>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (boards != null && boards.Count > 0)
+    {
+        <div class="row">
+            @foreach (var board in boards)
+            {
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="/board/@board.Id" class="text-decoration-none">@board.Name</a>
+                            </h5>
+                            <p class="card-text text-muted">@board.Description</p>
+                            <small class="text-muted">Created: @board.CreatedAt.ToShortDateString()</small>
+                        </div>
+                        <div class="card-footer bg-white">
+                            <a href="/board/@board.Id" class="btn btn-sm btn-primary">Open</a>
+                            @if (IsOwner(board))
+                            {
+                                <button @onclick="() => HandleDeleteBoard(board.Id)" class="btn btn-sm btn-danger">Delete</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (loading)
+    {
+        <p>Loading boards...</p>
+    }
+    else
+    {
+        <p>No boards yet. <button @onclick="ToggleNewBoardForm" class="btn btn-sm btn-primary">Create one</button></p>
+    }
+</div>
+
+@code {
+    [Inject]
+    private IBoardService BoardService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = null!;
+
+    private List<Board>? boards;
+    private bool loading = true;
+    private bool showNewBoardForm = false;
+    private string? userId;
+    private Board newBoard = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            NavigationManager.NavigateTo("/Account/Login");
+            return;
+        }
+
+        await LoadBoards();
+        loading = false;
+    }
+
+    private async Task LoadBoards()
+    {
+        try
+        {
+            boards = await BoardService.GetUserBoardsAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading boards: {ex.Message}");
+        }
+    }
+
+    private void ToggleNewBoardForm()
+    {
+        showNewBoardForm = !showNewBoardForm;
+        if (!showNewBoardForm)
+        {
+            newBoard = new();
+        }
+    }
+
+    private async Task HandleCreateBoard()
+    {
+        if (string.IsNullOrWhiteSpace(newBoard.Name) || string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            await BoardService.CreateBoardAsync(userId, newBoard.Name, newBoard.Description);
+            await LoadBoards();
+            showNewBoardForm = false;
+            newBoard = new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating board: {ex.Message}");
+        }
+    }
+
+    private async Task HandleDeleteBoard(int boardId)
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            await BoardService.DeleteBoardAsync(boardId, userId);
+            await LoadBoards();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting board: {ex.Message}");
+        }
+    }
+
+    private bool IsOwner(Board board)
+    {
+        return board.OwnerId == userId;
+    }
+}

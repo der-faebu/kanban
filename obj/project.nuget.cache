@@ -1,13 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "x0dLuJYIQ/Y=",
+  "dgSpecHash": "nYMKJ44GK4E=",
   "success": true,
   "projectFilePath": "/Users/faebu/repos/kanban/Kanban.csproj",
   "expectedPackageFiles": [
     "/Users/faebu/.cache/NuGetPackages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.app.internal.assets/10.0.5/microsoft.aspnetcore.app.internal.assets.10.0.5.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.diagnostics.entityframeworkcore/9.0.1/microsoft.aspnetcore.diagnostics.entityframeworkcore.9.0.1.nupkg.sha512",
+    "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.http.connections.client/9.0.1/microsoft.aspnetcore.http.connections.client.9.0.1.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.identity.entityframeworkcore/9.0.1/microsoft.aspnetcore.identity.entityframeworkcore.9.0.1.nupkg.sha512",
+    "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.signalr.client/9.0.1/microsoft.aspnetcore.signalr.client.9.0.1.nupkg.sha512",
+    "/Users/faebu/.cache/NuGetPackages/microsoft.aspnetcore.signalr.client.core/9.0.1/microsoft.aspnetcore.signalr.client.core.9.0.1.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.bcl.asyncinterfaces/7.0.0/microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.build.framework/17.8.3/microsoft.build.framework.17.8.3.nupkg.sha512",
     "/Users/faebu/.cache/NuGetPackages/microsoft.build.locator/1.7.8/microsoft.build.locator.1.7.8.nupkg.sha512",

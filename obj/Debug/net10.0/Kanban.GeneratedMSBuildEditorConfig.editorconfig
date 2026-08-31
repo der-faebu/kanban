@@ -182,12 +182,40 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1NoYXJlZC9TdGF0dXNNZXNzYWdlLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/faebu/repos/kanban/Components/Account/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L19JbXBvcnRzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/faebu/repos/kanban/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/faebu/repos/kanban/Components/Kanban/AddCardForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vQWRkQ2FyZEZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Kanban/AddListForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vQWRkTGlzdEZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Kanban/BoardView.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vQm9hcmRWaWV3LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Kanban/CardComponent.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vQ2FyZENvbXBvbmVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Kanban/ListComponent.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vTGlzdENvbXBvbmVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/faebu/repos/kanban/Components/Pages/Auth.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9BdXRoLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Pages/Boards.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Cb2FyZHMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/faebu/repos/kanban/Components/Pages/Counter.razor]

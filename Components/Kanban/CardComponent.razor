@@ -1,0 +1,135 @@
+@using Kanban.Services
+@using Kanban.Data.Entities
+
+<div class="card" draggable="true" @ondragstart="HandleDragStart" @ondragend="HandleDragEnd">
+    <div class="card-content">
+        <h3>@Card.Title</h3>
+        @if (!string.IsNullOrEmpty(Card.Description))
+        {
+            <p>@Card.Description</p>
+        }
+        @if (Card.DueDate.HasValue)
+        {
+            <small class="due-date">Due: @Card.DueDate.Value.ToShortDateString()</small>
+        }
+    </div>
+    <div class="card-actions">
+        <button @onclick="HandleDelete" class="btn btn-sm btn-danger" title="Delete">×</button>
+    </div>
+</div>
+
+<style>
+    .card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        cursor: grab;
+        user-select: none;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .card:active {
+        cursor: grabbing;
+    }
+
+    .card-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .card h3 {
+        margin: 0 0 4px 0;
+        font-size: 14px;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .card p {
+        margin: 0;
+        font-size: 12px;
+        color: #666;
+        word-break: break-word;
+    }
+
+    .due-date {
+        display: block;
+        margin-top: 4px;
+        color: #f57c00;
+        font-weight: 500;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .btn-sm {
+        padding: 2px 6px;
+        font-size: 12px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Card Card { get; set; } = null!;
+
+    [Parameter]
+    public int ListId { get; set; }
+
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Parameter]
+    public EventCallback OnCardMoved { get; set; }
+
+    [Inject]
+    private ICardService CardService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private void HandleDragStart(DragEventArgs e)
+    {
+        e.DataTransfer.EffectAllowed = "move";
+        e.DataTransfer.SetData("cardId", Card.Id.ToString());
+        e.DataTransfer.SetData("sourceListId", ListId.ToString());
+    }
+
+    private void HandleDragEnd(DragEventArgs e)
+    {
+    }
+
+    private async Task HandleDelete()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            try
+            {
+                await CardService.SoftDeleteCardAsync(Card.Id, userId);
+                await OnCardMoved.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting card: {ex.Message}");
+            }
+        }
+    }
+}

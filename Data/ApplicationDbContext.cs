@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardMember> BoardMembers => Set<BoardMember>();
+    public DbSet<List> Lists => Set<List>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -25,6 +26,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasForeignKey(bm => bm.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Entity<Board>()
+            .HasMany(b => b.Lists)
+            .WithOne(l => l.Board)
+            .HasForeignKey(l => l.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Entity<BoardMember>()
             .HasOne(bm => bm.User)
             .WithMany()
@@ -34,5 +41,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<BoardMember>()
             .HasIndex(bm => new { bm.BoardId, bm.UserId })
             .IsUnique();
+
+        builder.Entity<List>()
+            .HasIndex(l => new { l.BoardId, l.Position });
     }
 }

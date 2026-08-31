@@ -564,6 +564,10 @@
               "target": "Package",
               "version": "[17.14.1, )"
             },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.2.1, )"
+            },
             "Testcontainers.PostgreSql": {
               "target": "Package",
               "version": "[3.11.0, )"

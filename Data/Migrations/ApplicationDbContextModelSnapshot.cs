@@ -154,6 +154,40 @@ namespace Kanban.Migrations
                     b.ToTable("BoardMembers");
                 });
 
+            modelBuilder.Entity("Kanban.Data.Entities.List", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId", "Position");
+
+                    b.ToTable("Lists");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -320,6 +354,17 @@ namespace Kanban.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Kanban.Data.Entities.List", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.Board", "Board")
+                        .WithMany("Lists")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -373,6 +418,8 @@ namespace Kanban.Migrations
 
             modelBuilder.Entity("Kanban.Data.Entities.Board", b =>
                 {
+                    b.Navigation("Lists");
+
                     b.Navigation("Members");
                 });
 #pragma warning restore 612, 618

@@ -48,6 +48,7 @@ builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<ILabelService, LabelService>();
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
+builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
 
 var app = builder.Build();
 
@@ -79,6 +80,7 @@ app.MapBoardEndpoints();
 app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
+app.MapTrelloImportEndpoints();
 
 // Map SignalR hubs
 app.MapHub<BoardSyncHub>("/sync");

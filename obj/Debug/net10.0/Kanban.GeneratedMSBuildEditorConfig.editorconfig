@@ -50,14 +50,6 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvY2tvdXQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[/Users/faebu/repos/kanban/Components/Account/Pages/Login.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvZ2luLnJhem9y
-build_metadata.AdditionalFiles.CssScope = 
-
-[/Users/faebu/repos/kanban/Components/Account/Pages/RegisterConfirmation.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL1JlZ2lzdGVyQ29uZmlybWF0aW9uLnJhem9y
-build_metadata.AdditionalFiles.CssScope = 
-
 [/Users/faebu/repos/kanban/Components/Account/Pages/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL19JbXBvcnRzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -108,6 +100,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [/Users/faebu/repos/kanban/Components/Kanban/CardComponent.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vQ2FyZENvbXBvbmVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/faebu/repos/kanban/Components/Kanban/ImportTrelloForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9LYW5iYW4vSW1wb3J0VHJlbGxvRm9ybS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/faebu/repos/kanban/Components/Kanban/ListComponent.razor]

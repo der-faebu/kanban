@@ -1,0 +1,115 @@
+@using Kanban.Data.Dtos
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="import-form">
+    <h3>Import from Trello</h3>
+
+    <div class="form-group">
+        <label for="trelloFile">Select Trello JSON Export:</label>
+        <input
+            type="file"
+            id="trelloFile"
+            accept=".json"
+            @onchange="OnFileSelected"
+            class="form-control"
+            disabled="@isLoading" />
+    </div>
+
+    @if (selectedFile != null)
+    {
+        <div class="alert alert-info">
+            Selected: @selectedFile.Name
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    <button
+        class="btn btn-primary"
+        @onclick="UploadFile"
+        disabled="@(selectedFile == null || isLoading)">
+        @if (isLoading)
+        {
+            <span>Importing...</span>
+        }
+        else
+        {
+            <span>Import</span>
+        }
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Parameter]
+    public EventCallback<TrelloImportResult> OnImportComplete { get; set; }
+
+    private IBrowserFile? selectedFile;
+    private bool isLoading = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        successMessage = null;
+        selectedFile = e.File;
+
+        if (selectedFile.Size > 5 * 1024 * 1024)
+        {
+            errorMessage = "File size must be less than 5 MB";
+            selectedFile = null;
+        }
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+            return;
+
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var fileStream = selectedFile.OpenReadStream(5 * 1024 * 1024);
+            content.Add(new StreamContent(fileStream), "file", selectedFile.Name);
+
+            var response = await Http.PostAsync($"/api/import/trello/{BoardId}", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadAsAsync<TrelloImportResult>();
+                successMessage = result.Message;
+                await OnImportComplete.InvokeAsync(result);
+                selectedFile = null;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsAsync<dynamic>();
+                errorMessage = error?.message ?? "Import failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading file: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

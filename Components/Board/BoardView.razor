@@ -138,6 +138,10 @@ else
         hubConnection.On<dynamic>("ListUpdated", async (data) => await OnListUpdated(data));
         hubConnection.On<dynamic>("ListReordered", async (data) => await OnListReordered(data));
         hubConnection.On<dynamic>("ListDeleted", async (data) => await OnListDeleted(data));
+        hubConnection.On<dynamic>("LabelAdded", async (data) => await OnCardBadgesChanged(data));
+        hubConnection.On<dynamic>("LabelRemoved", async (data) => await OnCardBadgesChanged(data));
+        hubConnection.On<dynamic>("AssigneeAdded", async (data) => await OnCardBadgesChanged(data));
+        hubConnection.On<dynamic>("AssigneeRemoved", async (data) => await OnCardBadgesChanged(data));
 
         try
         {
@@ -211,6 +215,12 @@ else
     }
 
     private async Task OnListDeleted(dynamic data)
+    {
+        await LoadBoardData();
+        StateHasChanged();
+    }
+
+    private async Task OnCardBadgesChanged(dynamic data)
     {
         await LoadBoardData();
         StateHasChanged();

@@ -1,0 +1,467 @@
+@page "/board/{BoardId:int}/card/{CardId:int}"
+@rendermode InteractiveServer
+@using Kanban.Services
+@using Kanban.Data
+@using Kanban.Data.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Text.Json
+@attribute [StreamRendering(enabled: true)]
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+@if (loading)
+{
+    <p>Loading card...</p>
+}
+else if (!found)
+{
+    <div class="not-found">
+        <h3>Card not found</h3>
+        <p>This card doesn't exist, was deleted, or you don't have access to it.</p>
+        <a href="/board/@BoardId">Back to board</a>
+    </div>
+}
+else
+{
+    <div class="card-detail">
+        <a href="/board/@BoardId" class="back-link">&larr; Back to board</a>
+
+        <input class="title-input" @bind="title" @bind:event="oninput" @onblur="SaveCardFields" />
+
+        <div class="field">
+            <label>Description</label>
+            <textarea @bind="description" @bind:event="oninput" @onblur="SaveCardFields" rows="4"></textarea>
+        </div>
+
+        <div class="field">
+            <label>Due date</label>
+            <input type="date" value="@dueDateInput" @onchange="HandleDueDateChanged" />
+        </div>
+
+        <div class="field">
+            <label>Labels</label>
+            <div class="chip-row">
+                @foreach (var label in cardLabels)
+                {
+                    <span class="chip" style="background-color:@label.Color">
+                        @label.Name
+                        <button class="chip-remove" @onclick="() => RemoveLabel(label.Id)" title="Remove label">&times;</button>
+                    </span>
+                }
+            </div>
+
+            <div class="palette">
+                @foreach (var label in boardLabels.Where(l => !cardLabels.Any(cl => cl.Id == l.Id)))
+                {
+                    <button class="chip chip-add" style="background-color:@label.Color" @onclick="() => AddLabel(label.Id)">
+                        + @label.Name
+                    </button>
+                }
+            </div>
+
+            @if (isOwner)
+            {
+                <div class="label-create">
+                    <input type="text" @bind="newLabelName" placeholder="New label name" />
+                    <div class="swatches">
+                        @foreach (var color in LabelSwatches.Colors)
+                        {
+                            <button type="button" class="swatch @(color == newLabelColor ? "selected" : "")"
+                                    style="background-color:@color" @onclick="() => newLabelColor = color"></button>
+                        }
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="CreateLabel" disabled="@string.IsNullOrWhiteSpace(newLabelName)">Create label</button>
+                </div>
+
+                <div class="label-delete">
+                    @foreach (var label in boardLabels)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteLabel(label.Id)">Delete "@label.Name"</button>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="field">
+            <label>Assignees</label>
+            <div class="chip-row">
+                @foreach (var assignee in cardAssignees)
+                {
+                    <span class="chip assignee-chip">
+                        @(assignee.UserName ?? assignee.Email)
+                        <button class="chip-remove" @onclick="() => RemoveAssignee(assignee.Id)" title="Remove assignee">&times;</button>
+                    </span>
+                }
+            </div>
+
+            <select @onchange="AddAssignee">
+                <option value="">Assign someone...</option>
+                @foreach (var member in boardMembers.Where(m => !cardAssignees.Any(a => a.Id == m.UserId)))
+                {
+                    <option value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</option>
+                }
+            </select>
+        </div>
+    </div>
+}
+
+<style>
+    .card-detail {
+        max-width: 700px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .back-link {
+        color: #666;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+    .title-input {
+        font-size: 24px;
+        font-weight: 600;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 4px 0;
+    }
+
+    .title-input:focus {
+        outline: none;
+        border-bottom-color: #2196f3;
+    }
+
+    .field label {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 6px;
+    }
+
+    .field textarea, .field select, .field input[type="date"] {
+        width: 100%;
+        font-family: inherit;
+    }
+
+    .chip-row, .palette, .swatches, .label-delete {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: white;
+        border: none;
+    }
+
+    .assignee-chip {
+        background: #6B7280;
+    }
+
+    .chip-remove {
+        background: transparent;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .chip-add {
+        cursor: pointer;
+        opacity: 0.85;
+    }
+
+    .swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .swatch.selected {
+        border-color: #333;
+    }
+
+    .label-create {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .not-found {
+        max-width: 500px;
+        margin: 60px auto;
+        text-align: center;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Parameter]
+    public int CardId { get; set; }
+
+    [Inject]
+    private ICardService CardService { get; set; } = null!;
+
+    [Inject]
+    private ILabelService LabelService { get; set; } = null!;
+
+    [Inject]
+    private IBoardService BoardService { get; set; } = null!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private bool loading = true;
+    private bool found = false;
+    private bool isOwner = false;
+    private string? userId;
+    private HubConnection? hubConnection;
+
+    private string title = string.Empty;
+    private string description = string.Empty;
+    private string dueDateInput = string.Empty;
+    private DateTime? dueDate;
+
+    private List<Label> cardLabels = [];
+    private List<Label> boardLabels = [];
+    private List<ApplicationUser> cardAssignees = [];
+    private List<BoardMember> boardMembers = [];
+
+    private string newLabelName = string.Empty;
+    private string newLabelColor = LabelSwatches.Colors[0];
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            NavigationManager.NavigateTo("/Account/Login");
+            return;
+        }
+
+        await LoadCardData();
+        if (found)
+        {
+            await InitializeSignalR();
+        }
+        loading = false;
+    }
+
+    private async Task LoadCardData()
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            var card = await CardService.GetCardByIdAsync(CardId, userId);
+            if (card == null || card.List == null || card.List.BoardId != BoardId)
+            {
+                found = false;
+                return;
+            }
+
+            found = true;
+            title = card.Title;
+            description = card.Description;
+            dueDate = card.DueDate;
+            dueDateInput = dueDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+
+            cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
+            boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
+            cardAssignees = await CardService.GetCardAssigneesAsync(CardId, userId);
+            boardMembers = await BoardService.GetBoardMembersAsync(BoardId, userId);
+            isOwner = await BoardService.IsUserBoardOwnerAsync(BoardId, userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading card: {ex.Message}");
+            found = false;
+        }
+    }
+
+    private async Task InitializeSignalR()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/sync"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<JsonElement>("CardUpdated", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardDeleted", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("LabelAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("AssigneeAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("AssigneeRemoved", async data => await RefreshIfForThisCard(data));
+        // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
+        hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
+        hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
+
+        try
+        {
+            await hubConnection.StartAsync();
+            await hubConnection.InvokeAsync("JoinBoardGroup", BoardId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR connection error: {ex.Message}");
+        }
+    }
+
+    private async Task Refresh()
+    {
+        await LoadCardData();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshIfForThisCard(JsonElement data)
+    {
+        if (data.TryGetProperty("cardId", out var cardIdProp) && cardIdProp.GetInt32() == CardId)
+        {
+            await Refresh();
+        }
+    }
+
+    private async Task SaveCardFields()
+    {
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.UpdateCardAsync(CardId, userId, title, description, dueDate);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating card: {ex.Message}");
+        }
+    }
+
+    private async Task HandleDueDateChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        dueDate = string.IsNullOrWhiteSpace(value) ? null : DateTime.Parse(value);
+        dueDateInput = value ?? string.Empty;
+        await SaveCardFields();
+    }
+
+    private async Task AddLabel(int labelId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CardService.AddLabelAsync(CardId, userId, labelId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding label: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveLabel(int labelId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CardService.RemoveLabelAsync(CardId, userId, labelId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing label: {ex.Message}");
+        }
+    }
+
+    private async Task CreateLabel()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newLabelName)) return;
+        try
+        {
+            await LabelService.CreateLabelAsync(BoardId, userId, newLabelName, newLabelColor);
+            newLabelName = string.Empty;
+            newLabelColor = LabelSwatches.Colors[0];
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating label: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteLabel(int labelId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await LabelService.DeleteLabelAsync(labelId, userId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting label: {ex.Message}");
+        }
+    }
+
+    private async Task AddAssignee(ChangeEventArgs e)
+    {
+        var assigneeUserId = e.Value?.ToString();
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(assigneeUserId)) return;
+        try
+        {
+            await CardService.AddAssigneeAsync(CardId, userId, assigneeUserId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding assignee: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveAssignee(string assigneeUserId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CardService.RemoveAssigneeAsync(CardId, userId, assigneeUserId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing assignee: {ex.Message}");
+        }
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

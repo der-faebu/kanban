@@ -27,10 +27,23 @@ public class KanbanWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-            if (descriptor != null)
+            // Program.cs registers ApplicationDbContext via AddDbContextFactory (singleton
+            // factory) plus a scoped wrapper around it. Swapping in AddDbContext here (which
+            // registers scoped DbContextOptions) leaves the app's singleton factory pointing at
+            // options of the wrong lifetime, so remove all three descriptors and re-register the
+            // same factory-based shape Program.cs uses, just pointed at the test container.
+            foreach (var serviceType in new[]
+                     {
+                         typeof(DbContextOptions<ApplicationDbContext>),
+                         typeof(IDbContextFactory<ApplicationDbContext>),
+                         typeof(ApplicationDbContext)
+                     })
             {
-                services.Remove(descriptor);
+                var descriptor = services.FirstOrDefault(d => d.ServiceType == serviceType);
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
             }
 
             if (!_containerStarted)
@@ -40,8 +53,10 @@ public class KanbanWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             var connectionString = _container.GetConnectionString();
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContextFactory<ApplicationDbContext>(options =>
                 options.UseNpgsql(connectionString));
+            services.AddScoped<ApplicationDbContext>(sp =>
+                sp.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 
             var serviceProvider = services.BuildServiceProvider();
             using var scope = serviceProvider.CreateScope();

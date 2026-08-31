@@ -1,7 +1,8 @@
 @using Kanban.Services
+@using Kanban.Data
 @using Kanban.Data.Entities
 
-<div class="card" draggable="true" @ondragstart="HandleDragStart" @ondragend="HandleDragEnd">
+<div class="card" draggable="true" @ondragstart="HandleDragStart" @ondragend="HandleDragEnd" @onclick="OpenCard">
     <div class="card-content">
         <h3>@Card.Title</h3>
         @if (!string.IsNullOrEmpty(Card.Description))
@@ -12,9 +13,22 @@
         {
             <small class="due-date">Due: @Card.DueDate.Value.ToShortDateString()</small>
         }
+        @if (labels.Count > 0 || assignees.Count > 0)
+        {
+            <div class="badge-row">
+                @foreach (var label in labels)
+                {
+                    <span class="label-chip" style="background-color:@label.Color" title="@label.Name"></span>
+                }
+                @foreach (var assignee in assignees)
+                {
+                    <span class="assignee-badge" title="@(assignee.UserName ?? assignee.Email)">@Initials(assignee)</span>
+                }
+            </div>
+        }
     </div>
     <div class="card-actions">
-        <button @onclick="HandleDelete" class="btn btn-sm btn-danger" title="Delete">×</button>
+        <button @onclick="HandleDelete" @onclick:stopPropagation="true" class="btn btn-sm btn-danger" title="Delete">×</button>
     </div>
 </div>
 
@@ -77,6 +91,34 @@
         padding: 2px 6px;
         font-size: 12px;
     }
+
+    .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+        align-items: center;
+    }
+
+    .label-chip {
+        display: inline-block;
+        width: 24px;
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    .assignee-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #6B7280;
+        color: white;
+        font-size: 9px;
+        font-weight: 600;
+    }
 </style>
 
 @code {
@@ -101,12 +143,49 @@
     [Inject]
     private DragDropState DragState { get; set; } = null!;
 
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = null!;
+
     private string? userId;
+    private List<Label> labels = [];
+    private List<ApplicationUser> assignees = [];
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadBadges();
+    }
+
+    private async Task LoadBadges()
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            labels = await CardService.GetCardLabelsAsync(Card.Id, userId);
+            assignees = await CardService.GetCardAssigneesAsync(Card.Id, userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading card badges: {ex.Message}");
+        }
+    }
+
+    private static string Initials(ApplicationUser user)
+    {
+        var name = user.UserName ?? user.Email ?? "?";
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+
+    private void OpenCard()
+    {
+        NavigationManager.NavigateTo($"/board/{BoardId}/card/{Card.Id}");
     }
 
     private void HandleDragStart(DragEventArgs e)

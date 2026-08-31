@@ -1,2 +1,6 @@
 <Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Kanban.Tests.csproj" />
+  </Folder>
+  <Project Path="Kanban.csproj" />
 </Solution>

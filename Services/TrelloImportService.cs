@@ -12,7 +12,7 @@ public interface ITrelloImportService
     Task<TrelloImportResult> ImportBoardAsync(string userId, Stream jsonStream, string boardName);
 }
 
-public class TrelloImportService(ApplicationDbContext context, IBoardService boardService) : ITrelloImportService
+public class TrelloImportService(IDbContextFactory<ApplicationDbContext> contextFactory) : ITrelloImportService
 {
     public async Task<TrelloImportResult> ImportBoardAsync(string userId, Stream jsonStream, string boardName)
     {
@@ -22,10 +22,21 @@ public class TrelloImportService(ApplicationDbContext context, IBoardService boa
             if (trelloBoard == null)
                 return new TrelloImportResult { Success = false, Message = "Invalid Trello JSON format" };
 
+            await using var context = await contextFactory.CreateDbContextAsync();
             using var transaction = await context.Database.BeginTransactionAsync();
 
-            // Create new board
-            var board = await boardService.CreateBoardAsync(userId, boardName, trelloBoard.Desc ?? "");
+            // Create new board (inlined rather than via IBoardService so it stays on this
+            // transaction's own context instead of a separate factory-created one)
+            var board = new Board
+            {
+                Name = boardName,
+                Description = trelloBoard.Desc ?? "",
+                OwnerId = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Boards.Add(board);
+            await context.SaveChangesAsync();
 
             // Create labels map
             var labelMap = new Dictionary<string, Label>();

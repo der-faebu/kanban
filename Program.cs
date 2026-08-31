@@ -58,8 +58,15 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     });
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Blazor Server components share one DI scope (the circuit) for the whole session, so a
+// shared scoped DbContext gets hit concurrently by sibling components and throws. Services
+// called from Razor components use this factory to get a short-lived context per operation.
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
+// Identity and the JWT-based endpoints still need ApplicationDbContext directly injectable
+// (they run per-HTTP-request, not per-circuit, so a scoped instance is safe for them).
+builder.Services.AddScoped<ApplicationDbContext>(sp =>
+    sp.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>

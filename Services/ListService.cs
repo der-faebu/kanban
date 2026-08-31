@@ -16,13 +16,15 @@ public interface IListService
     Task<bool> IsUserBoardMemberAsync(int boardId, string userId);
 }
 
-public class ListService(ApplicationDbContext context, IBoardService boardService, IBoardSyncService boardSyncService) : IListService
+public class ListService(IDbContextFactory<ApplicationDbContext> contextFactory, IBoardService boardService, IBoardSyncService boardSyncService) : IListService
 {
     public async Task<List> CreateListAsync(int boardId, string userId, string name)
     {
         var isMember = await boardService.IsUserBoardMemberAsync(boardId, userId);
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
+
+        await using var context = await contextFactory.CreateDbContextAsync();
 
         var maxPosition = await context.Lists
             .Where(l => l.BoardId == boardId && !l.IsDeleted)
@@ -47,6 +49,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
 
     public async Task<List?> GetListByIdAsync(int listId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
 
         if (list == null)
@@ -65,6 +69,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         return await context.Lists
             .Where(l => l.BoardId == boardId && !l.IsDeleted)
             .OrderBy(l => l.Position)
@@ -73,6 +79,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
 
     public async Task RenameListAsync(int listId, string userId, string newName)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
 
         if (list == null)
@@ -95,6 +103,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var lists = await context.Lists
             .Where(l => l.BoardId == boardId && !l.IsDeleted)
             .ToListAsync();
@@ -115,6 +125,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
 
     public async Task SoftDeleteListAsync(int listId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
 
         if (list == null)
@@ -133,6 +145,8 @@ public class ListService(ApplicationDbContext context, IBoardService boardServic
 
     public async Task RestoreListAsync(int listId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && l.IsDeleted);
 
         if (list == null)

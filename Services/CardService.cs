@@ -22,10 +22,12 @@ public interface ICardService
     Task<List<Label>> GetCardLabelsAsync(int cardId, string userId);
 }
 
-public class CardService(ApplicationDbContext context, IListService listService, IBoardSyncService boardSyncService) : ICardService
+public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService) : ICardService
 {
     public async Task<Card> CreateCardAsync(int listId, string userId, string title, string description)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
         if (list == null)
             throw new InvalidOperationException("List not found");
@@ -55,6 +57,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task<Card?> GetCardByIdAsync(int cardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             return null;
@@ -65,6 +69,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task<List<Card>> GetListCardsAsync(int listId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
         if (list == null)
             throw new InvalidOperationException("List not found");
@@ -81,6 +87,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task UpdateCardAsync(int cardId, string userId, string title, string description, DateTime? dueDate)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -100,6 +108,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -123,6 +133,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
         if (list == null)
             throw new InvalidOperationException("List not found");
@@ -150,6 +162,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task SoftDeleteCardAsync(int cardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -167,6 +181,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task RestoreCardAsync(int cardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -182,6 +198,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task AddAssigneeAsync(int cardId, string userId, string assigneeUserId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -207,6 +225,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task RemoveAssigneeAsync(int cardId, string userId, string assigneeUserId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -227,6 +247,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task<List<ApplicationUser>> GetCardAssigneesAsync(int cardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -243,6 +265,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task AddLabelAsync(int cardId, string userId, int labelId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -268,6 +292,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task RemoveLabelAsync(int cardId, string userId, int labelId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");
@@ -288,6 +314,8 @@ public class CardService(ApplicationDbContext context, IListService listService,
 
     public async Task<List<Label>> GetCardLabelsAsync(int cardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
         if (card?.List == null)
             throw new InvalidOperationException("Card not found");

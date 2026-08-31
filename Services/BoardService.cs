@@ -18,10 +18,12 @@ public interface IBoardService
     Task<bool> IsUserBoardMemberAsync(int boardId, string userId);
 }
 
-public class BoardService(ApplicationDbContext context) : IBoardService
+public class BoardService(IDbContextFactory<ApplicationDbContext> contextFactory) : IBoardService
 {
     public async Task<Board> CreateBoardAsync(string userId, string name, string description)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = new Board
         {
             Name = name,
@@ -39,6 +41,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task<List<Board>> GetUserBoardsAsync(string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         return await context.Boards
             .Where(b => !b.IsDeleted && (b.OwnerId == userId || b.Members.Any(m => m.UserId == userId)))
             .OrderByDescending(b => b.CreatedAt)
@@ -47,6 +51,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task<Board?> GetBoardByIdAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards
             .Include(b => b.Members)
             .ThenInclude(m => m.User)
@@ -63,6 +69,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task DeleteBoardAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -77,6 +85,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task AddBoardMemberAsync(int boardId, string userId, string memberId, BoardMemberRole role)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -108,6 +118,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task RemoveBoardMemberAsync(int boardId, string userId, string memberId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -128,6 +140,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task ChangeBoardMemberRoleAsync(int boardId, string userId, string memberId, BoardMemberRole role)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -148,6 +162,8 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task<List<BoardMember>> GetBoardMembersAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -164,12 +180,16 @@ public class BoardService(ApplicationDbContext context) : IBoardService
 
     public async Task<bool> IsUserBoardOwnerAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         return await context.Boards
             .AnyAsync(b => b.Id == boardId && !b.IsDeleted && b.OwnerId == userId);
     }
 
     public async Task<bool> IsUserBoardMemberAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         return await context.Boards
             .AnyAsync(b => b.Id == boardId && !b.IsDeleted &&
                 (b.OwnerId == userId || b.Members.Any(m => m.UserId == userId)));

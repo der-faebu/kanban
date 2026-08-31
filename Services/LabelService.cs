@@ -11,10 +11,12 @@ public interface ILabelService
     Task DeleteLabelAsync(int labelId, string userId);
 }
 
-public class LabelService(ApplicationDbContext context, IListService listService, IBoardSyncService boardSyncService) : ILabelService
+public class LabelService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService) : ILabelService
 {
     public async Task<Label> CreateLabelAsync(int boardId, string userId, string name, string color)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
         if (board == null)
             throw new InvalidOperationException("Board not found");
@@ -39,6 +41,8 @@ public class LabelService(ApplicationDbContext context, IListService listService
 
     public async Task<List<Label>> GetBoardLabelsAsync(int boardId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
         if (board == null)
             throw new InvalidOperationException("Board not found");
@@ -54,6 +58,8 @@ public class LabelService(ApplicationDbContext context, IListService listService
 
     public async Task DeleteLabelAsync(int labelId, string userId)
     {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
         var label = await context.Labels.FirstOrDefaultAsync(l => l.Id == labelId && !l.IsDeleted);
         if (label == null)
             throw new InvalidOperationException("Label not found");

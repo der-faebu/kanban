@@ -98,6 +98,9 @@
     [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
+    [Inject]
+    private DragDropState DragState { get; set; } = null!;
+
     private string? userId;
 
     protected override async Task OnInitializedAsync()
@@ -109,8 +112,8 @@
     private void HandleDragStart(DragEventArgs e)
     {
         e.DataTransfer.EffectAllowed = "move";
-        e.DataTransfer.SetData("cardId", Card.Id.ToString());
-        e.DataTransfer.SetData("sourceListId", ListId.ToString());
+        DragState.DraggedCardId = Card.Id;
+        DragState.SourceListId = ListId;
     }
 
     private void HandleDragEnd(DragEventArgs e)

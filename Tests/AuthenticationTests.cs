@@ -52,12 +52,10 @@ public class AuthenticationTests : IAsyncLifetime
         var form = registerDocument.QuerySelector("form");
         Assert.NotNull(form);
 
-        var formData = new Dictionary<string, string>
-        {
-            { "Input.Email", "test@example.com" },
-            { "Input.Password", "TestPassword123!" },
-            { "Input.ConfirmPassword", "TestPassword123!" }
-        };
+        var formData = GetHiddenFormFields(registerDocument);
+        formData["Input.Email"] = "test@example.com";
+        formData["Input.Password"] = "TestPassword123!";
+        formData["Input.ConfirmPassword"] = "TestPassword123!";
 
         var content = new FormUrlEncodedContent(formData);
         var response = await _client.PostAsync("/Account/Register", content);
@@ -78,11 +76,9 @@ public class AuthenticationTests : IAsyncLifetime
         var loginContent = await loginPage.Content.ReadAsStringAsync();
         var loginDocument = await _context.OpenAsync(req => req.Content(loginContent));
 
-        var formData = new Dictionary<string, string>
-        {
-            { "Input.Email", email },
-            { "Input.Password", password }
-        };
+        var formData = GetHiddenFormFields(loginDocument);
+        formData["Input.Email"] = email;
+        formData["Input.Password"] = password;
 
         var content = new FormUrlEncodedContent(formData);
         var response = await _client.PostAsync("/Account/Login", content);
@@ -99,11 +95,13 @@ public class AuthenticationTests : IAsyncLifetime
 
         await RegisterUser(email, password);
 
-        var formData = new Dictionary<string, string>
-        {
-            { "Input.Email", email },
-            { "Input.Password", "WrongPassword123!" }
-        };
+        var loginPage = await _client.GetAsync("/Account/Login");
+        var loginContent = await loginPage.Content.ReadAsStringAsync();
+        var loginDocument = await _context.OpenAsync(req => req.Content(loginContent));
+
+        var formData = GetHiddenFormFields(loginDocument);
+        formData["Input.Email"] = email;
+        formData["Input.Password"] = "WrongPassword123!";
 
         var content = new FormUrlEncodedContent(formData);
         var response = await _client.PostAsync("/Account/Login", content);
@@ -116,15 +114,29 @@ public class AuthenticationTests : IAsyncLifetime
     {
         var registerPage = await _client.GetAsync("/Account/Register");
         var registerContent = await registerPage.Content.ReadAsStringAsync();
+        var registerDocument = await _context.OpenAsync(req => req.Content(registerContent));
 
-        var formData = new Dictionary<string, string>
-        {
-            { "Input.Email", email },
-            { "Input.Password", password },
-            { "Input.ConfirmPassword", password }
-        };
+        var formData = GetHiddenFormFields(registerDocument);
+        formData["Input.Email"] = email;
+        formData["Input.Password"] = password;
+        formData["Input.ConfirmPassword"] = password;
 
         var content = new FormUrlEncodedContent(formData);
         await _client.PostAsync("/Account/Register", content);
+    }
+
+    private static Dictionary<string, string> GetHiddenFormFields(AngleSharp.Dom.IDocument document)
+    {
+        var fields = new Dictionary<string, string>();
+        foreach (var input in document.QuerySelectorAll("input[type='hidden']"))
+        {
+            var name = input.GetAttribute("name");
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            fields[name] = input.GetAttribute("value") ?? string.Empty;
+        }
+
+        return fields;
     }
 }

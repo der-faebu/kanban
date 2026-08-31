@@ -8,7 +8,7 @@ public static class CardEndpoints
 {
     public static void MapCardEndpoints(this WebApplication app)
     {
-        var cardGroup = app.MapGroup("/api/lists/{listId}/cards").RequireAuthorization();
+        var cardGroup = app.MapGroup("/api/lists/{listId}/cards").RequireJwtAuthorization();
 
         cardGroup.MapPost("/", CreateCard)
             .Produces<object>(StatusCodes.Status201Created)

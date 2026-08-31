@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Kanban.Data;
 using Kanban.Data.Dtos;
 using Kanban.Data.Entities;
+using Kanban.Tests.Fixtures;
 
 namespace Kanban.Tests;
 

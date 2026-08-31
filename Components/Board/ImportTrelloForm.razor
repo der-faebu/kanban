@@ -1,4 +1,5 @@
 @using Kanban.Data.Dtos
+@using System.Text.Json.Serialization
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
@@ -7,11 +8,10 @@
 
     <div class="form-group">
         <label for="trelloFile">Select Trello JSON Export:</label>
-        <input
-            type="file"
+        <InputFile
             id="trelloFile"
             accept=".json"
-            @onchange="OnFileSelected"
+            OnChange="OnFileSelected"
             class="form-control"
             disabled="@isLoading" />
     </div>
@@ -92,15 +92,18 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadAsAsync<TrelloImportResult>();
-                successMessage = result.Message;
-                await OnImportComplete.InvokeAsync(result);
+                var result = await response.Content.ReadFromJsonAsync<TrelloImportResult>();
+                successMessage = result?.Message;
+                if (result != null)
+                {
+                    await OnImportComplete.InvokeAsync(result);
+                }
                 selectedFile = null;
             }
             else
             {
-                var error = await response.Content.ReadAsAsync<dynamic>();
-                errorMessage = error?.message ?? "Import failed";
+                var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                errorMessage = error?.Message ?? "Import failed";
             }
         }
         catch (Exception ex)
@@ -111,5 +114,11 @@
         {
             isLoading = false;
         }
+    }
+
+    private class ErrorResponse
+    {
+        [JsonPropertyName("message")]
+        public string? Message { get; set; }
     }
 }

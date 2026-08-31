@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using Kanban.Components.Account.Pages;
+using Kanban.Components.Account.Pages.Manage;
 using Kanban.Data;
 
 namespace Microsoft.AspNetCore.Routing;

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Kanban.Data;
 using Kanban.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Kanban.Endpoints;
 
@@ -8,7 +9,7 @@ public static class BoardEndpoints
 {
     public static void MapBoardEndpoints(this WebApplication app)
     {
-        var boardGroup = app.MapGroup("/api/boards").RequireAuthorization();
+        var boardGroup = app.MapGroup("/api/boards").RequireJwtAuthorization();
 
         boardGroup.MapPost("/", CreateBoard)
             .Produces<object>(StatusCodes.Status201Created)
@@ -93,7 +94,7 @@ public static class BoardEndpoints
         }
         catch (InvalidOperationException ex)
         {
-            return ex.Message.Contains("owner") ? Results.Forbid() : Results.NotFound();
+            return ex.Message.Contains("owner") ? Results.Forbid(authenticationSchemes: [JwtBearerDefaults.AuthenticationScheme]) : Results.NotFound();
         }
     }
 
@@ -127,7 +128,7 @@ public static class BoardEndpoints
         }
         catch (InvalidOperationException ex)
         {
-            return ex.Message.Contains("owner") ? Results.Forbid() : Results.NotFound();
+            return ex.Message.Contains("owner") ? Results.Forbid(authenticationSchemes: [JwtBearerDefaults.AuthenticationScheme]) : Results.NotFound();
         }
     }
 

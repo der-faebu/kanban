@@ -8,7 +8,7 @@ public static class ListEndpoints
 {
     public static void MapListEndpoints(this WebApplication app)
     {
-        var listGroup = app.MapGroup("/api/boards/{boardId}/lists").RequireAuthorization();
+        var listGroup = app.MapGroup("/api/boards/{boardId}/lists").RequireJwtAuthorization();
 
         listGroup.MapPost("/", CreateList)
             .Produces<object>(StatusCodes.Status201Created)

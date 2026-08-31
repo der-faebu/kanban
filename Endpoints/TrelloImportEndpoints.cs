@@ -1,6 +1,9 @@
 using Kanban.Data;
+using Kanban.Data.Dtos;
 using Kanban.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kanban.Endpoints;
 
@@ -10,8 +13,7 @@ public static class TrelloImportEndpoints
     {
         var group = app.MapGroup("/api/import")
             .WithName("TrelloImport")
-            .WithOpenApi()
-            .RequireAuthorization();
+            .RequireJwtAuthorization();
 
         group.MapPost("/trello/{boardId}", ImportTrello)
             .WithName("ImportTrello")
@@ -21,14 +23,15 @@ public static class TrelloImportEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .DisableAntiforgery();
     }
 
     private static async Task<IResult> ImportTrello(
         int boardId,
         IFormFile file,
         ITrelloImportService trelloImportService,
-        IBoardService boardService,
+        ApplicationDbContext dbContext,
         HttpContext context)
     {
         if (file == null || file.Length == 0)
@@ -41,32 +44,22 @@ public static class TrelloImportEndpoints
         if (string.IsNullOrEmpty(userId))
             return Results.Unauthorized();
 
-        var board = await boardService.GetBoardAsync(boardId);
+        var board = await dbContext.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
         if (board == null)
             return Results.NotFound(new { message = "Board not found" });
 
         if (board.OwnerId != userId)
-            return Results.Forbid();
+            return Results.Forbid(authenticationSchemes: [JwtBearerDefaults.AuthenticationScheme]);
 
         try
         {
             using var stream = file.OpenReadStream();
             var result = await trelloImportService.ImportBoardAsync(userId, stream, board.Name);
-            return Results.Ok(result);
+            return result.Success ? Results.Ok(result) : Results.BadRequest(result);
         }
         catch (Exception ex)
         {
             return Results.BadRequest(new { message = $"Import failed: {ex.Message}" });
         }
     }
-}
-
-public class TrelloImportResult
-{
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public int? BoardId { get; set; }
-    public int ListsImported { get; set; }
-    public int CardsImported { get; set; }
-    public int LabelsCreated { get; set; }
 }

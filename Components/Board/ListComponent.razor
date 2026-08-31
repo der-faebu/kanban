@@ -7,7 +7,7 @@
         <button @onclick="HandleDelete" class="btn btn-sm btn-danger">×</button>
     </div>
 
-    <div class="cards-container" @ondragover="HandleCardDragOver" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
+    <div class="cards-container" @ondragover="HandleCardDragOver" @ondragover:preventDefault="true" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
         @if (cards != null)
         {
             @foreach (var card in cards.OrderBy(c => c.Position))
@@ -94,6 +94,9 @@
     [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
+    [Inject]
+    private DragDropState DragState { get; set; } = null!;
+
     private List<Card>? cards;
     private string? userId;
     private bool isDragOverCards = false;
@@ -123,7 +126,7 @@
     private void HandleListDragStart(DragEventArgs e)
     {
         e.DataTransfer.EffectAllowed = "move";
-        e.DataTransfer.SetData("listId", List.Id.ToString());
+        DragState.DraggedListId = List.Id;
     }
 
     private void HandleListDragEnd(DragEventArgs e)
@@ -133,7 +136,6 @@
     private void HandleCardDragOver(DragEventArgs e)
     {
         e.DataTransfer.DropEffect = "move";
-        e.PreventDefault();
         isDragOverCards = true;
     }
 
@@ -145,19 +147,24 @@
     private async Task HandleCardDrop(DragEventArgs e)
     {
         isDragOverCards = false;
-        var cardIdStr = e.DataTransfer.GetData("cardId");
-        if (int.TryParse(cardIdStr, out var cardId) && !string.IsNullOrEmpty(userId))
+        var cardId = DragState.DraggedCardId;
+        if (cardId.HasValue && !string.IsNullOrEmpty(userId))
         {
             try
             {
                 var newPosition = cards?.Count ?? 0;
-                await CardService.MoveCardAsync(cardId, userId, List.Id, newPosition);
+                await CardService.MoveCardAsync(cardId.Value, userId, List.Id, newPosition);
                 await LoadCards();
                 await OnCardMoved.InvokeAsync();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error moving card: {ex.Message}");
+            }
+            finally
+            {
+                DragState.DraggedCardId = null;
+                DragState.SourceListId = null;
             }
         }
     }

@@ -12,15 +12,15 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Kanban.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260831191050_AddList")]
-    partial class AddList
+    [Migration("20260831203234_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -155,6 +155,118 @@ namespace Kanban.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("BoardMembers");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.Card", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ListId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListId", "Position");
+
+                    b.ToTable("Cards");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.CardAssignee", b =>
+                {
+                    b.Property<int>("CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CardId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CardAssignees");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.CardLabel", b =>
+                {
+                    b.Property<int>("CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LabelId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CardId", "LabelId");
+
+                    b.HasIndex("LabelId");
+
+                    b.ToTable("CardLabels");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.Label", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId");
+
+                    b.ToTable("Labels");
                 });
 
             modelBuilder.Entity("Kanban.Data.Entities.List", b =>
@@ -357,6 +469,66 @@ namespace Kanban.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Kanban.Data.Entities.Card", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.List", "List")
+                        .WithMany("Cards")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("List");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.CardAssignee", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.Card", "Card")
+                        .WithMany("Assignees")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Kanban.Data.ApplicationUser", "User")
+                        .WithMany("CardAssignments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.CardLabel", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.Card", "Card")
+                        .WithMany("Labels")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Kanban.Data.Entities.Label", "Label")
+                        .WithMany("Cards")
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Card");
+
+                    b.Navigation("Label");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.Label", b =>
+                {
+                    b.HasOne("Kanban.Data.Entities.Board", "Board")
+                        .WithMany("Labels")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
             modelBuilder.Entity("Kanban.Data.Entities.List", b =>
                 {
                     b.HasOne("Kanban.Data.Entities.Board", "Board")
@@ -419,11 +591,35 @@ namespace Kanban.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Kanban.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("CardAssignments");
+                });
+
             modelBuilder.Entity("Kanban.Data.Entities.Board", b =>
                 {
+                    b.Navigation("Labels");
+
                     b.Navigation("Lists");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.Card", b =>
+                {
+                    b.Navigation("Assignees");
+
+                    b.Navigation("Labels");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.Label", b =>
+                {
+                    b.Navigation("Cards");
+                });
+
+            modelBuilder.Entity("Kanban.Data.Entities.List", b =>
+                {
+                    b.Navigation("Cards");
                 });
 #pragma warning restore 612, 618
         }

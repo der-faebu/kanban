@@ -8,7 +8,7 @@ public static class LabelEndpoints
 {
     public static void MapLabelEndpoints(this WebApplication app)
     {
-        var labelGroup = app.MapGroup("/api/boards/{boardId}/labels").RequireAuthorization();
+        var labelGroup = app.MapGroup("/api/boards/{boardId}/labels").RequireJwtAuthorization();
 
         labelGroup.MapPost("/", CreateLabel)
             .Produces<object>(StatusCodes.Status201Created)

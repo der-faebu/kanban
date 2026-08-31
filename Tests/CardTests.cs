@@ -161,6 +161,153 @@ public class CardTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
+    [Fact]
+    public async Task UpdateCard_WithDueDate_ReturnsOk()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var dueDate = DateTime.UtcNow.AddDays(5);
+        var request = new UpdateCardRequest { Title = "Updated", DueDate = dueDate };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AddAssignee_WithValidUserId_ReturnsOk()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        string assigneeUserId = Guid.NewGuid().ToString();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var assignee = new ApplicationUser { Id = assigneeUserId, UserName = $"assignee_{assigneeUserId}", Email = $"assignee_{assigneeUserId}@example.com" };
+            dbContext.Users.Add(assignee);
+            await dbContext.SaveChangesAsync();
+
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new AddCardAssigneeRequest { UserId = assigneeUserId };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/assignees", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAssignees_ReturnsEmptyList()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var response = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}/assignees");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var assignees = await response.Content.ReadFromJsonAsync<List<object>>();
+        Assert.NotNull(assignees);
+        Assert.Empty(assignees!);
+    }
+
+    [Fact]
+    public async Task CreateLabel_WithValidData_ReturnsCreated()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var request = new CreateLabelRequest { Name = "Bug", Color = "#FF0000" };
+        var response = await _client.PostAsJsonAsync($"/api/boards/{_boardId}/labels", request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetBoardLabels_ReturnsEmptyList()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var response = await _client.GetAsync($"/api/boards/{_boardId}/labels");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var labels = await response.Content.ReadFromJsonAsync<List<object>>();
+        Assert.NotNull(labels);
+        Assert.Empty(labels!);
+    }
+
+    [Fact]
+    public async Task AddLabel_ToCard_ReturnsOk()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        int labelId = 0;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var label = new Label { BoardId = _boardId, Name = "Bug", Color = "#FF0000" };
+            dbContext.Labels.Add(label);
+            await dbContext.SaveChangesAsync();
+            labelId = label.Id;
+
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new AddCardLabelRequest { LabelId = labelId };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/labels", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetCardLabels_ReturnsEmptyList()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var response = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}/labels");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var labels = await response.Content.ReadFromJsonAsync<List<object>>();
+        Assert.NotNull(labels);
+        Assert.Empty(labels!);
+    }
+
     private string CreateToken(string userId)
     {
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId) };

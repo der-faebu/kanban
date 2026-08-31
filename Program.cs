@@ -32,7 +32,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = true;
-        options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+        options.Stores.SchemaVersion = IdentitySchemaVersions.Version2;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
@@ -43,6 +43,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddScoped<IBoardService, BoardService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ICardService, CardService>();
+builder.Services.AddScoped<ILabelService, LabelService>();
 
 var app = builder.Build();
 
@@ -57,7 +58,7 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
@@ -73,6 +74,7 @@ app.MapAdditionalIdentityEndpoints();
 app.MapBoardEndpoints();
 app.MapListEndpoints();
 app.MapCardEndpoints();
+app.MapLabelEndpoints();
 
 app.Run();
 

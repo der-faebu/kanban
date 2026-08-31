@@ -41,6 +41,30 @@ public static class CardEndpoints
         cardGroup.MapPost("/{cardId}/restore", RestoreCard)
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPost("/{cardId}/assignees", AddAssignee)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        cardGroup.MapDelete("/{cardId}/assignees/{assigneeUserId}", RemoveAssignee)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapGet("/{cardId}/assignees", GetAssignees)
+            .Produces<List<object>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPost("/{cardId}/labels", AddLabel)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        cardGroup.MapDelete("/{cardId}/labels/{labelId}", RemoveLabel)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapGet("/{cardId}/labels", GetLabels)
+            .Produces<List<object>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> CreateCard(HttpContext context, ICardService cardService, int listId, CreateCardRequest request)
@@ -101,7 +125,7 @@ public static class CardEndpoints
 
         try
         {
-            await cardService.UpdateCardAsync(cardId, userId, request.Title, request.Description ?? "");
+            await cardService.UpdateCardAsync(cardId, userId, request.Title, request.Description ?? "", request.DueDate);
             return Results.Ok();
         }
         catch (InvalidOperationException ex)
@@ -175,6 +199,108 @@ public static class CardEndpoints
         catch (InvalidOperationException ex)
         {
             return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> AddAssignee(HttpContext context, ICardService cardService, int listId, int cardId, AddCardAssigneeRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.AddAssigneeAsync(cardId, userId, request.UserId);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> RemoveAssignee(HttpContext context, ICardService cardService, int listId, int cardId, string assigneeUserId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.RemoveAssigneeAsync(cardId, userId, assigneeUserId);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> GetAssignees(HttpContext context, ICardService cardService, int listId, int cardId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var assignees = await cardService.GetCardAssigneesAsync(cardId, userId);
+            return Results.Ok(assignees);
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> AddLabel(HttpContext context, ICardService cardService, int listId, int cardId, AddCardLabelRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.AddLabelAsync(cardId, userId, request.LabelId);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> RemoveLabel(HttpContext context, ICardService cardService, int listId, int cardId, int labelId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.RemoveLabelAsync(cardId, userId, labelId);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> GetLabels(HttpContext context, ICardService cardService, int listId, int cardId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var labels = await cardService.GetCardLabelsAsync(cardId, userId);
+            return Results.Ok(labels);
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
         }
     }
 }

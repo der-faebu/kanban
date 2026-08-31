@@ -10,6 +10,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<BoardMember> BoardMembers => Set<BoardMember>();
     public DbSet<List> Lists => Set<List>();
     public DbSet<Card> Cards => Set<Card>();
+    public DbSet<Label> Labels => Set<Label>();
+    public DbSet<CardAssignee> CardAssignees => Set<CardAssignee>();
+    public DbSet<CardLabel> CardLabels => Set<CardLabel>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -29,6 +32,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<Board>()
             .HasMany(b => b.Lists)
+            .WithOne(l => l.Board)
+            .HasForeignKey(l => l.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Board>()
+            .HasMany(b => b.Labels)
             .WithOne(l => l.Board)
             .HasForeignKey(l => l.BoardId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -54,5 +63,36 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<Card>()
             .HasIndex(c => new { c.ListId, c.Position });
+
+        builder.Entity<Card>()
+            .HasMany(c => c.Assignees)
+            .WithOne(ca => ca.Card)
+            .HasForeignKey(ca => ca.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Card>()
+            .HasMany(c => c.Labels)
+            .WithOne(cl => cl.Card)
+            .HasForeignKey(cl => cl.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardAssignee>()
+            .HasKey(ca => new { ca.CardId, ca.UserId });
+
+        builder.Entity<CardAssignee>()
+            .HasOne(ca => ca.User)
+            .WithMany(u => u.CardAssignments)
+            .HasForeignKey(ca => ca.UserId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardLabel>()
+            .HasKey(cl => new { cl.CardId, cl.LabelId });
+
+        builder.Entity<CardLabel>()
+            .HasOne(cl => cl.Label)
+            .WithMany(l => l.Cards)
+            .HasForeignKey(cl => cl.LabelId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -1,0 +1,44 @@
+/*
+  Tailwind utilities only — Preflight (Tailwind's CSS reset) is intentionally
+  NOT imported here, because it strips margins/font styles that MudBlazor's
+  own components depend on. This file is a utility layer that sits alongside
+  MudBlazor's component styling, not a replacement for it.
+
+  Color tokens alias wwwroot/theme.css's --knb-* custom properties, so
+  Tailwind utilities (bg-canvas, text-ink, border-line, bg-accent, ...) and
+  the MudBlazor theme (Theme/KanbanTheme.cs) stay visually consistent even
+  though they're defined in two different places (CSS vs C#).
+*/
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+    --color-canvas: var(--knb-bg-canvas);
+    --color-surface: var(--knb-bg-surface);
+    --color-surface-2: var(--knb-bg-surface-2);
+    --color-surface-3: var(--knb-bg-surface-3);
+    --color-surface-hover: var(--knb-bg-surface-hover);
+
+    --color-line: var(--knb-border);
+    --color-line-subtle: var(--knb-border-subtle);
+    --color-line-strong: var(--knb-border-strong);
+
+    --color-ink: var(--knb-text-primary);
+    --color-ink-muted: var(--knb-text-secondary);
+    --color-ink-faint: var(--knb-text-tertiary);
+
+    --color-accent: var(--knb-accent);
+    --color-accent-hover: var(--knb-accent-hover);
+    --color-accent-active: var(--knb-accent-active);
+
+    --color-danger: var(--knb-danger);
+    --color-success: var(--knb-success);
+    --color-warning: var(--knb-warning);
+
+    --radius-sm: var(--knb-radius-sm);
+    --radius-md: var(--knb-radius-md);
+    --radius-lg: var(--knb-radius-lg);
+
+    --font-sans: var(--knb-font-sans);
+    --font-mono: var(--knb-font-mono);
+}

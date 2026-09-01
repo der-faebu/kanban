@@ -1,0 +1,114 @@
+/*
+  Design tokens for the kanban app's visual redesign.
+  Dark, modern, techy — ships dark by default. A full light-mode set is
+  defined under [data-theme="light"] so a toggle can be added later without
+  reworking any component.
+*/
+
+:root {
+    /* Surfaces */
+    --knb-bg-canvas: #0a0c10;
+    --knb-bg-surface: #12151b;
+    --knb-bg-surface-2: #191d26;
+    --knb-bg-surface-3: #212635;
+    --knb-bg-surface-hover: #1c2029;
+
+    /* Borders */
+    --knb-border-subtle: #1f2430;
+    --knb-border: #2e3446;
+    --knb-border-strong: #3d4459;
+
+    /* Text */
+    --knb-text-primary: #e7e9f0;
+    --knb-text-secondary: #9aa2b8;
+    --knb-text-tertiary: #656d82;
+    --knb-text-on-accent: #05060a;
+    --knb-text-inverse: #0a0c10;
+
+    /* Accent (electric indigo) */
+    --knb-accent: #6d5efc;
+    --knb-accent-hover: #8172ff;
+    --knb-accent-active: #5a4cf0;
+    --knb-accent-subtle: rgba(109, 94, 252, 0.16);
+    --knb-accent-border: rgba(109, 94, 252, 0.45);
+
+    /* Status */
+    --knb-danger: #f65a6a;
+    --knb-danger-subtle: rgba(246, 90, 106, 0.14);
+    --knb-success: #35d399;
+    --knb-success-subtle: rgba(53, 211, 153, 0.14);
+    --knb-warning: #f2b84b;
+    --knb-warning-subtle: rgba(242, 184, 75, 0.14);
+
+    /* Typography */
+    --knb-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    --knb-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --knb-text-xs: 0.75rem;
+    --knb-text-sm: 0.8125rem;
+    --knb-text-base: 0.875rem;
+    --knb-text-md: 1rem;
+    --knb-text-lg: 1.125rem;
+    --knb-text-xl: 1.375rem;
+    --knb-text-2xl: 1.75rem;
+
+    /* Spacing (4px grid) */
+    --knb-space-1: 0.25rem;
+    --knb-space-2: 0.5rem;
+    --knb-space-3: 0.75rem;
+    --knb-space-4: 1rem;
+    --knb-space-5: 1.25rem;
+    --knb-space-6: 1.5rem;
+    --knb-space-8: 2rem;
+
+    /* Radius — sharper edges, not fully rounded */
+    --knb-radius-sm: 4px;
+    --knb-radius-md: 6px;
+    --knb-radius-lg: 8px;
+    --knb-radius-full: 999px;
+
+    /* Shadow + focus glow */
+    --knb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --knb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --knb-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --knb-shadow-focus: 0 0 0 3px rgba(109, 94, 252, 0.35);
+
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+    --knb-bg-canvas: #f6f7fb;
+    --knb-bg-surface: #ffffff;
+    --knb-bg-surface-2: #f0f1f6;
+    --knb-bg-surface-3: #e6e8f0;
+    --knb-bg-surface-hover: #eceef4;
+
+    --knb-border-subtle: #ebedf3;
+    --knb-border: #d8dbe6;
+    --knb-border-strong: #b7bbd0;
+
+    --knb-text-primary: #151824;
+    --knb-text-secondary: #565d75;
+    --knb-text-tertiary: #8890a6;
+    --knb-text-on-accent: #ffffff;
+    --knb-text-inverse: #ffffff;
+
+    --knb-accent: #5b4cf0;
+    --knb-accent-hover: #4a3ce0;
+    --knb-accent-active: #6d5efc;
+    --knb-accent-subtle: rgba(91, 76, 240, 0.1);
+    --knb-accent-border: rgba(91, 76, 240, 0.35);
+
+    --knb-danger: #d9364a;
+    --knb-danger-subtle: rgba(217, 54, 74, 0.1);
+    --knb-success: #1a9c6c;
+    --knb-success-subtle: rgba(26, 156, 108, 0.1);
+    --knb-warning: #b9770e;
+    --knb-warning-subtle: rgba(185, 119, 14, 0.1);
+
+    --knb-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --knb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --knb-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+    --knb-shadow-focus: 0 0 0 3px rgba(91, 76, 240, 0.25);
+
+    color-scheme: light;
+}

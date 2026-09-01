@@ -1,19 +1,82 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--knb-font-sans);
+    background-color: var(--knb-bg-canvas);
+    color: var(--knb-text-primary);
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: var(--knb-accent);
+}
+
+a:hover, .btn-link:hover {
+    color: var(--knb-accent-hover);
 }
 
 .btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    color: var(--knb-text-on-accent);
+    background-color: var(--knb-accent);
+    border-color: var(--knb-accent);
+    border-radius: var(--knb-radius-md);
+}
+
+    .btn-primary:hover, .btn-primary:focus {
+        background-color: var(--knb-accent-hover);
+        border-color: var(--knb-accent-hover);
+    }
+
+.btn-secondary {
+    color: var(--knb-text-primary);
+    background-color: var(--knb-bg-surface-2);
+    border-color: var(--knb-border);
+    border-radius: var(--knb-radius-md);
+}
+
+    .btn-secondary:hover, .btn-secondary:focus {
+        background-color: var(--knb-bg-surface-3);
+        border-color: var(--knb-border-strong);
+        color: var(--knb-text-primary);
+    }
+
+.card {
+    background-color: var(--knb-bg-surface);
+    border-color: var(--knb-border);
+    border-radius: var(--knb-radius-lg);
+    color: var(--knb-text-primary);
+}
+
+.card-header, .card-footer {
+    background-color: var(--knb-bg-surface-2);
+    border-color: var(--knb-border);
+}
+
+.form-control, .form-select {
+    background-color: var(--knb-bg-surface-2);
+    border-color: var(--knb-border);
+    color: var(--knb-text-primary);
+    border-radius: var(--knb-radius-sm);
+}
+
+    .form-control:focus, .form-select:focus {
+        background-color: var(--knb-bg-surface-2);
+        color: var(--knb-text-primary);
+    }
+
+.form-control::placeholder {
+    color: var(--knb-text-tertiary);
+}
+
+.form-label {
+    color: var(--knb-text-secondary);
+}
+
+.modal-content {
+    background-color: var(--knb-bg-surface-2);
+    color: var(--knb-text-primary);
+    border-radius: var(--knb-radius-lg);
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: var(--knb-shadow-focus);
 }
 
 .content {

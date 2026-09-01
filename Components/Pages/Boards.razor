@@ -48,14 +48,14 @@
             @foreach (var board in boards)
             {
                 <MudItem xs="12" sm="6" md="4">
-                    <MudCard Outlined="true" Class="flex h-full flex-col">
+                    <MudCard Outlined="true" Class="board-card flex h-full flex-col">
                         <MudCardContent Class="flex-1">
                             <MudLink Href="@($"/board/{board.Id}")" Underline="Underline.None" Class="block text-lg font-semibold">@board.Name</MudLink>
                             @if (!string.IsNullOrEmpty(board.Description))
                             {
                                 <MudText Typo="Typo.body2" Class="text-ink-muted mt-1">@board.Description</MudText>
                             }
-                            <MudText Typo="Typo.caption" Class="text-ink-faint mt-2">Created @board.CreatedAt.ToShortDateString()</MudText>
+                            <span class="board-created-pill">Created @board.CreatedAt.ToShortDateString()</span>
                         </MudCardContent>
                         <MudCardActions Class="px-4 pb-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Href="@($"/board/{board.Id}")">Open</MudButton>
@@ -81,6 +81,28 @@
         </MudText>
     }
 </MudContainer>
+
+<style>
+    .board-card {
+        transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+    }
+
+    .board-card:hover {
+        border-color: var(--knb-border-strong);
+        box-shadow: var(--knb-shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .board-created-pill {
+        display: inline-flex;
+        margin-top: 10px;
+        font-size: 11px;
+        color: var(--knb-text-tertiary);
+        background: var(--knb-bg-surface-3);
+        padding: 1px 8px;
+        border-radius: var(--knb-radius-full);
+    }
+</style>
 
 @code {
     [Inject]

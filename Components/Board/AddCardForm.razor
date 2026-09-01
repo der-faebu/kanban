@@ -3,9 +3,10 @@
 <div class="p-2">
     @if (!isAdding)
     {
-        <MudButton Variant="Variant.Text" FullWidth="true" OnClick="ToggleForm" StartIcon="@Icons.Material.Filled.Add" Class="justify-start text-ink-faint hover:text-ink">
-            Add Card
-        </MudButton>
+        <div class="quick-add-trigger" @onclick="ToggleForm">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />
+            <span>Add card...</span>
+        </div>
     }
     else
     {
@@ -19,6 +20,25 @@
         </form>
     }
 </div>
+
+<style>
+    .quick-add-trigger {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border-radius: var(--knb-radius-md);
+        color: var(--knb-text-tertiary);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.15s, color 0.15s;
+    }
+
+    .quick-add-trigger:hover {
+        background: var(--knb-bg-surface-hover);
+        color: var(--knb-text-primary);
+    }
+</style>
 
 @code {
     [Parameter]

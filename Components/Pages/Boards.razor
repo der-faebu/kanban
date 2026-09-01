@@ -50,7 +50,7 @@
                 <MudItem xs="12" sm="6" md="4">
                     <MudCard Outlined="true" Class="flex h-full flex-col">
                         <MudCardContent Class="flex-1">
-                            <MudLink Href="@($"/board/{board.Id}")" Underline="Underline.None" Class="text-lg font-semibold">@board.Name</MudLink>
+                            <MudLink Href="@($"/board/{board.Id}")" Underline="Underline.None" Class="block text-lg font-semibold">@board.Name</MudLink>
                             @if (!string.IsNullOrEmpty(board.Description))
                             {
                                 <MudText Typo="Typo.body2" Class="text-ink-muted mt-1">@board.Description</MudText>

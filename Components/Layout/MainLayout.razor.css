@@ -1,21 +1,32 @@
 /*
   MudBlazor's <MudLayout>/<MudAppBar>/<MudDrawer> own layout/positioning now —
   this file only carries the one piece Mud doesn't: the raw #blazor-error-ui
-  banner, which isn't a Mud component.
+  banner. It's toggled by blazor.web.js directly on unhandled JS errors, so it
+  has to keep working as plain markup/CSS even when the Blazor circuit that
+  would drive a MudAlert is the thing that's broken.
 */
 #blazor-error-ui {
-    color-scheme: light only;
-    background: lightyellow;
+    background: var(--knb-danger);
+    color: var(--knb-text-on-accent);
+    border-top: 1px solid var(--knb-border-strong);
+    box-shadow: var(--knb-shadow-lg);
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
     box-sizing: border-box;
     display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
     position: fixed;
     width: 100%;
-    z-index: 1000;
+    /* Above MudBlazor's drawer/app-bar (z-index 1100+) and dialogs — this is
+       the last-resort banner for when the circuit itself is broken, so it
+       must never end up hidden behind app chrome. */
+    z-index: 1500;
 }
+
+    #blazor-error-ui .reload {
+        color: var(--knb-text-on-accent);
+        text-decoration: underline;
+    }
 
     #blazor-error-ui .dismiss {
         cursor: pointer;

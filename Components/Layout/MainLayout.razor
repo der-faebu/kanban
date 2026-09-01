@@ -1,9 +1,9 @@
 @inherits LayoutComponentBase
 
 <MudThemeProvider Theme="KanbanTheme.Theme" IsDarkMode="false" />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+<MudPopoverProvider @rendermode="InteractiveServer" />
+<MudDialogProvider @rendermode="InteractiveServer" />
+<MudSnackbarProvider @rendermode="InteractiveServer" />
 
 <MudLayout>
     <MudAppBar Elevation="0" Class="border-b border-line-subtle">

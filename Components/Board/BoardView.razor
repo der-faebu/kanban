@@ -1,4 +1,5 @@
 @page "/board/{BoardId:int}"
+@page "/board/{BoardId:int}/card/{CardId:int}"
 @rendermode InteractiveServer
 @using Kanban.Services
 @using Kanban.Data.Entities
@@ -95,6 +96,9 @@ else
     [Parameter]
     public int BoardId { get; set; }
 
+    [Parameter]
+    public int? CardId { get; set; }
+
     [Inject]
     private IBoardService BoardService { get; set; } = null!;
 
@@ -107,11 +111,15 @@ else
     [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
+
     private Board? board;
     private System.Collections.Generic.List<List>? lists;
     private bool loading = true;
     private string? userId;
     private HubConnection? hubConnection;
+    private int? openDialogForCardId;
     private readonly System.Collections.Generic.List<ToastMessage> toasts = [];
 
     private enum ToastKind { Success, Info, Danger }
@@ -151,6 +159,51 @@ else
         await LoadBoardData();
         await InitializeSignalR();
         loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Opening the dialog here (not OnParametersSetAsync) matters: on a deep-linked
+        // first load, BoardView is still mid-streaming-render ([StreamRendering]), and
+        // MudDialogProvider (in MainLayout) hasn't finished registering its component ID
+        // with the renderer yet. Calling DialogService.ShowAsync that early throws
+        // "The renderer does not have a component with ID N". OnAfterRenderAsync only
+        // fires once the tree has actually rendered, so the provider is ready by then.
+        if (CardId.HasValue && CardId != openDialogForCardId && board != null)
+        {
+            openDialogForCardId = CardId;
+            await OpenCardDialog(CardId.Value);
+        }
+    }
+
+    private async Task OpenCardDialog(int cardId)
+    {
+        var parameters = new DialogParameters<CardDetail>
+        {
+            { x => x.BoardId, BoardId },
+            { x => x.CardId, cardId },
+            { x => x.BoardName, board?.Name ?? string.Empty },
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = false,
+            CloseOnNavigation = true,
+            BackdropClick = true,
+        };
+
+        var dialog = await DialogService.ShowAsync<CardDetail>(string.Empty, parameters, options);
+        await dialog.Result;
+
+        openDialogForCardId = null;
+        if (CardId.HasValue)
+        {
+            NavigationManager.NavigateTo($"/board/{BoardId}", replace: true);
+        }
+        await LoadBoardData();
+        StateHasChanged();
     }
 
     private async Task LoadBoardData()

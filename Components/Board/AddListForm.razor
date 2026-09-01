@@ -1,43 +1,23 @@
 @using Kanban.Services
 
-<div class="add-list">
+<div class="min-w-[300px] rounded-lg bg-surface-2 p-3">
     @if (!isAdding)
     {
-        <button @onclick="ToggleForm" class="btn btn-outline-secondary">+ Add List</button>
+        <MudButton Variant="Variant.Text" FullWidth="true" OnClick="ToggleForm" StartIcon="@Icons.Material.Filled.Add" Class="justify-start text-ink-muted">
+            Add List
+        </MudButton>
     }
     else
     {
-        <form @onsubmit="HandleSubmit">
-            <input type="text" @bind="name" placeholder="List name" class="form-control form-control-sm" required />
-            <div class="form-actions mt-2">
-                <button type="submit" class="btn btn-sm btn-primary">Add</button>
-                <button type="button" @onclick="ToggleForm" class="btn btn-sm btn-secondary">Cancel</button>
+        <form @onsubmit="HandleSubmit" class="flex flex-col gap-2">
+            <MudTextField @bind-Value="name" Placeholder="List name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Required="true" />
+            <div class="flex gap-2">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="flex-1">Add</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="ToggleForm" Class="flex-1">Cancel</MudButton>
             </div>
         </form>
     }
 </div>
-
-<style>
-    .add-list {
-        min-width: 300px;
-        padding: 12px;
-        background: rgba(255,255,255,0.5);
-        border-radius: 8px;
-    }
-
-    .add-list button {
-        width: 100%;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .form-actions button {
-        flex: 1;
-    }
-</style>
 
 @code {
     [Parameter]

@@ -1,47 +1,24 @@
 @using Kanban.Services
 
-<div class="add-card">
+<div class="p-2">
     @if (!isAdding)
     {
-        <button @onclick="ToggleForm" class="btn btn-sm btn-outline-secondary btn-add">+ Add Card</button>
+        <MudButton Variant="Variant.Text" FullWidth="true" OnClick="ToggleForm" StartIcon="@Icons.Material.Filled.Add" Class="justify-start text-ink-faint hover:text-ink">
+            Add Card
+        </MudButton>
     }
     else
     {
-        <form @onsubmit="HandleSubmit">
-            <input type="text" @bind="title" placeholder="Card title" class="form-control form-control-sm mb-2" required />
-            <textarea @bind="description" placeholder="Description (optional)" class="form-control form-control-sm mb-2" rows="2"></textarea>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-sm btn-primary">Add</button>
-                <button type="button" @onclick="ToggleForm" class="btn btn-sm btn-secondary">Cancel</button>
+        <form @onsubmit="HandleSubmit" class="flex flex-col gap-2">
+            <MudTextField @bind-Value="title" Placeholder="Card title" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Required="true" />
+            <MudTextField @bind-Value="description" Placeholder="Description (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Lines="2" />
+            <div class="flex gap-2">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="flex-1">Add</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="ToggleForm" Class="flex-1">Cancel</MudButton>
             </div>
         </form>
     }
 </div>
-
-<style>
-    .add-card {
-        padding: 8px;
-    }
-
-    .btn-add {
-        width: 100%;
-        text-align: left;
-        color: #666;
-    }
-
-    .btn-add:hover {
-        background: #f0f0f0;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 4px;
-    }
-
-    .form-actions button {
-        flex: 1;
-    }
-</style>
 
 @code {
     [Parameter]

@@ -3,60 +3,56 @@
 @inject ITrelloImportService TrelloImportService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<div class="import-form">
-    <h3>Import from Trello</h3>
+<div class="flex flex-col gap-4">
+    <MudTextField
+        @bind-Value="newBoardName"
+        Label="New board name"
+        Placeholder="e.g. My Trello Board"
+        Variant="Variant.Outlined"
+        Margin="Margin.Dense"
+        FullWidth="true"
+        Disabled="isLoading" />
 
-    <div class="form-group">
-        <label for="newBoardName">New board name:</label>
-        <input
-            id="newBoardName"
-            type="text"
-            @bind="newBoardName"
-            placeholder="e.g. My Trello Board"
-            class="form-control"
-            disabled="@isLoading" />
-    </div>
-
-    <div class="form-group">
-        <label for="trelloFile">Select Trello JSON Export:</label>
+    <div>
+        <MudText Typo="Typo.body2" Class="text-ink-muted mb-1">Select Trello JSON export</MudText>
         <InputFile
             id="trelloFile"
             accept=".json"
             OnChange="OnFileSelected"
-            class="form-control"
-            disabled="@isLoading" />
+            disabled="@isLoading"
+            class="block w-full text-sm text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-ink hover:file:bg-surface-hover" />
     </div>
 
     @if (selectedFile != null)
     {
-        <div class="alert alert-info">
-            Selected: @selectedFile.Name
-        </div>
+        <MudAlert Severity="Severity.Info" Dense="true">Selected: @selectedFile.Name</MudAlert>
     }
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger">@errorMessage</div>
+        <MudAlert Severity="Severity.Error" Dense="true">@errorMessage</MudAlert>
     }
 
     @if (!string.IsNullOrEmpty(successMessage))
     {
-        <div class="alert alert-success">@successMessage</div>
+        <MudAlert Severity="Severity.Success" Dense="true">@successMessage</MudAlert>
     }
 
-    <button
-        class="btn btn-primary"
-        @onclick="UploadFile"
-        disabled="@(selectedFile == null || string.IsNullOrWhiteSpace(newBoardName) || isLoading)">
+    <MudButton
+        Variant="Variant.Filled"
+        Color="Color.Primary"
+        OnClick="UploadFile"
+        Disabled="@(selectedFile == null || string.IsNullOrWhiteSpace(newBoardName) || isLoading)">
         @if (isLoading)
         {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             <span>Importing...</span>
         }
         else
         {
             <span>Import</span>
         }
-    </button>
+    </MudButton>
 </div>
 
 @code {

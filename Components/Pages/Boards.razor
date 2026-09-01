@@ -8,87 +8,79 @@
 
 <PageTitle>Boards</PageTitle>
 
-<div class="container mt-4">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1>My Boards</h1>
-        </div>
-        <div class="col-md-4">
-            <button @onclick="ToggleNewBoardForm" class="btn btn-primary">+ New Board</button>
-            <button @onclick="ToggleImportForm" class="btn btn-secondary ms-2">Import from Trello</button>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <MudText Typo="Typo.h4">My Boards</MudText>
+        <div class="flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="ToggleNewBoardForm">New Board</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="ToggleImportForm">Import from Trello</MudButton>
         </div>
     </div>
 
     @if (showNewBoardForm)
     {
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Create New Board</h5>
-                <EditForm Model="newBoard" OnValidSubmit="HandleCreateBoard">
-                    <DataAnnotationsValidator />
-                    <div class="mb-3">
-                        <label class="form-label">Board Name</label>
-                        <InputText @bind-Value="newBoard.Name" class="form-control" required />
-                        <ValidationMessage For="() => newBoard.Name" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <InputTextArea @bind-Value="newBoard.Description" class="form-control" />
-                    </div>
-                    <button type="submit" class="btn btn-primary">Create</button>
-                    <button type="button" @onclick="ToggleNewBoardForm" class="btn btn-secondary">Cancel</button>
-                </EditForm>
-            </div>
-        </div>
+        <MudPaper Outlined="true" Class="mb-6 pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create New Board</MudText>
+            <EditForm Model="newBoard" OnValidSubmit="HandleCreateBoard" class="flex flex-col gap-3">
+                <MudTextField @bind-Value="newBoard.Name" Label="Board Name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Required="true" />
+                <MudTextField @bind-Value="newBoard.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Lines="2" />
+                <div class="flex gap-2">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Create</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="ToggleNewBoardForm">Cancel</MudButton>
+                </div>
+            </EditForm>
+        </MudPaper>
     }
 
     @if (showImportForm)
     {
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Import Trello Board</h5>
-                <p class="text-muted">Importing always creates a new board from the Trello export.</p>
-                <ImportTrelloForm OnImportComplete="HandleImportComplete" />
-                <button type="button" @onclick="ToggleImportForm" class="btn btn-secondary mt-3">Cancel</button>
-            </div>
-        </div>
+        <MudPaper Outlined="true" Class="mb-6 pa-4">
+            <MudText Typo="Typo.h6" Class="mb-1">Import Trello Board</MudText>
+            <MudText Typo="Typo.body2" Class="text-ink-muted mb-3">Importing always creates a new board from the Trello export.</MudText>
+            <ImportTrelloForm OnImportComplete="HandleImportComplete" />
+            <MudButton Variant="Variant.Text" OnClick="ToggleImportForm" Class="mt-3">Cancel</MudButton>
+        </MudPaper>
     }
 
     @if (boards != null && boards.Count > 0)
     {
-        <div class="row">
+        <MudGrid>
             @foreach (var board in boards)
             {
-                <div class="col-md-6 mb-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <a href="/board/@board.Id" class="text-decoration-none">@board.Name</a>
-                            </h5>
-                            <p class="card-text text-muted">@board.Description</p>
-                            <small class="text-muted">Created: @board.CreatedAt.ToShortDateString()</small>
-                        </div>
-                        <div class="card-footer bg-white">
-                            <a href="/board/@board.Id" class="btn btn-sm btn-primary">Open</a>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Outlined="true" Class="flex h-full flex-col">
+                        <MudCardContent Class="flex-1">
+                            <MudLink Href="@($"/board/{board.Id}")" Underline="Underline.None" Class="text-lg font-semibold">@board.Name</MudLink>
+                            @if (!string.IsNullOrEmpty(board.Description))
+                            {
+                                <MudText Typo="Typo.body2" Class="text-ink-muted mt-1">@board.Description</MudText>
+                            }
+                            <MudText Typo="Typo.caption" Class="text-ink-faint mt-2">Created @board.CreatedAt.ToShortDateString()</MudText>
+                        </MudCardContent>
+                        <MudCardActions Class="px-4 pb-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Href="@($"/board/{board.Id}")">Open</MudButton>
                             @if (IsOwner(board))
                             {
-                                <button @onclick="() => HandleDeleteBoard(board.Id)" class="btn btn-sm btn-danger">Delete</button>
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => HandleDeleteBoard(board.Id)">Delete</MudButton>
                             }
-                        </div>
-                    </div>
-                </div>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
             }
-        </div>
+        </MudGrid>
     }
     else if (loading)
     {
-        <p>Loading boards...</p>
+        <MudText Class="text-ink-muted">Loading boards...</MudText>
     }
     else
     {
-        <p>No boards yet. <button @onclick="ToggleNewBoardForm" class="btn btn-sm btn-primary">Create one</button></p>
+        <MudText Class="text-ink-muted">
+            No boards yet.
+            <MudLink OnClick="ToggleNewBoardForm" Class="cursor-pointer">Create one</MudLink>
+        </MudText>
     }
-</div>
+</MudContainer>
 
 @code {
     [Inject]

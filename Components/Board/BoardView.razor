@@ -9,36 +9,37 @@
 
 @if (board != null)
 {
-    <div class="board-container">
-        <div class="board-header">
-            <h1>@board.Name</h1>
-            <p>@board.Description</p>
-        </div>
+    <div class="mb-6">
+        <MudText Typo="Typo.h4" Class="mb-1">@board.Name</MudText>
+        @if (!string.IsNullOrEmpty(board.Description))
+        {
+            <MudText Typo="Typo.body2" Class="text-ink-muted">@board.Description</MudText>
+        }
+    </div>
 
-        <div class="lists-container" ondragover="event.preventDefault()">
-            @if (lists != null)
+    <div class="flex gap-5 overflow-x-auto pb-3" ondragover="event.preventDefault()">
+        @if (lists != null)
+        {
+            @foreach (var list in lists.OrderBy(l => l.Position))
             {
-                @foreach (var list in lists.OrderBy(l => l.Position))
-                {
-                    <ListComponent
-                        List="list"
-                        BoardId="BoardId"
-                        OnCardMoved="HandleCardMoved"
-                        OnListReordered="HandleListReordered"
-                        @key="list.Id" />
-                }
+                <ListComponent
+                    List="list"
+                    BoardId="BoardId"
+                    OnCardMoved="HandleCardMoved"
+                    OnListReordered="HandleListReordered"
+                    @key="list.Id" />
             }
-            <AddListForm BoardId="BoardId" OnListAdded="HandleListAdded" />
-        </div>
+        }
+        <AddListForm BoardId="BoardId" OnListAdded="HandleListAdded" />
     </div>
 }
 else if (loading)
 {
-    <p>Loading board...</p>
+    <MudText Class="text-ink-muted">Loading board...</MudText>
 }
 else
 {
-    <p>Board not found.</p>
+    <MudText Class="text-ink-muted">Board not found.</MudText>
 }
 
 <div class="toast-container">
@@ -49,33 +50,6 @@ else
 </div>
 
 <style>
-    .board-container {
-        padding: 20px;
-        min-height: 100vh;
-        background: #e9ecef;
-    }
-
-    .board-header {
-        margin-bottom: 20px;
-    }
-
-    .board-header h1 {
-        margin: 0 0 5px 0;
-        font-size: 28px;
-    }
-
-    .board-header p {
-        margin: 0;
-        color: #666;
-    }
-
-    .lists-container {
-        display: flex;
-        gap: 20px;
-        overflow-x: auto;
-        padding: 10px 0;
-    }
-
     .toast-container {
         position: fixed;
         top: 16px;
@@ -87,12 +61,13 @@ else
     }
 
     .toast {
-        background: #333;
-        color: white;
+        background: var(--knb-bg-surface-3);
+        color: var(--knb-text-primary);
+        border: 1px solid var(--knb-border);
         padding: 10px 16px;
-        border-radius: 6px;
+        border-radius: var(--knb-radius-md);
         font-size: 14px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        box-shadow: var(--knb-shadow-md);
         animation: toast-in 0.2s ease-out;
     }
 

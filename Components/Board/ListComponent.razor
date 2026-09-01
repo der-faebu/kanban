@@ -1,13 +1,13 @@
 @using Kanban.Services
 @using Kanban.Data.Entities
 
-<div class="list" draggable="true" @ondragstart="HandleListDragStart" @ondragend="HandleListDragEnd">
+<div class="list @(isDraggingList ? "dragging" : "")" draggable="true" @ondragstart="HandleListDragStart" @ondragend="HandleListDragEnd">
     <div class="list-header">
         <h2>@List.Name</h2>
-        <button @onclick="HandleDelete" class="btn btn-sm btn-danger">×</button>
+        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="list-delete p-1" OnClick="HandleDelete" title="Delete list" />
     </div>
 
-    <div class="cards-container" @ondragover="HandleCardDragOver" @ondragover:preventDefault="true" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
+    <div class="cards-container @(isDragOverCards ? "drag-over" : "")" @ondragover="HandleCardDragOver" @ondragover:preventDefault="true" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
         @if (cards != null)
         {
             @foreach (var card in cards.OrderBy(c => c.Position))
@@ -26,8 +26,9 @@
 
 <style>
     .list {
-        background: #f5f5f5;
-        border-radius: 8px;
+        background: var(--knb-bg-surface);
+        border: 1px solid var(--knb-border-subtle);
+        border-radius: var(--knb-radius-lg);
         min-width: 300px;
         padding: 12px;
         display: flex;
@@ -35,39 +36,49 @@
         gap: 12px;
         cursor: grab;
         user-select: none;
+        transition: opacity 0.15s;
     }
 
     .list:active {
         cursor: grabbing;
     }
 
-    .list.drag-over {
-        background: #e3f2fd;
-        border: 2px solid #2196f3;
+    .list.dragging {
+        opacity: 0.5;
     }
 
     .list-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
     }
 
     .list-header h2 {
         margin: 0;
-        font-size: 18px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--knb-text-primary);
     }
+
+    .list-delete {
+        color: var(--knb-text-tertiary);
+    }
+
+        .list-delete:hover {
+            color: var(--knb-danger);
+        }
 
     .cards-container {
         display: flex;
         flex-direction: column;
         gap: 8px;
         min-height: 50px;
+        border-radius: var(--knb-radius-md);
+        transition: background-color 0.15s;
     }
 
     .cards-container.drag-over {
-        background: rgba(33, 150, 243, 0.1);
-        border-radius: 4px;
+        background: var(--knb-accent-subtle);
         padding: 4px;
     }
 </style>
@@ -100,6 +111,7 @@
     private List<Card>? cards;
     private string? userId;
     private bool isDragOverCards = false;
+    private bool isDraggingList = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,10 +142,12 @@
     {
         e.DataTransfer.EffectAllowed = "move";
         DragState.DraggedListId = List.Id;
+        isDraggingList = true;
     }
 
     private void HandleListDragEnd(DragEventArgs e)
     {
+        isDraggingList = false;
     }
 
     private void HandleCardDragOver(DragEventArgs e)

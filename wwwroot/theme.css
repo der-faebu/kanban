@@ -1,44 +1,45 @@
 /*
-  Design tokens for the kanban app's visual redesign.
-  Dark, modern, techy — ships dark by default. A full light-mode set is
-  defined under [data-theme="light"] so a toggle can be added later without
-  reworking any component.
+  Design tokens for the kanban app's visual identity — assimilating Kanso's
+  (github.com/aktasfatih/kanso) light, Nextcloud-blue-adjacent look. Ships
+  light by default. A dark companion (same accent family, not Kanso's own —
+  Kanso has no dark mode) is defined under [data-theme="dark"] so a toggle
+  can be added later without reworking any component.
 */
 
 :root {
     /* Surfaces */
-    --knb-bg-canvas: #0a0c10;
-    --knb-bg-surface: #12151b;
-    --knb-bg-surface-2: #191d26;
-    --knb-bg-surface-3: #212635;
-    --knb-bg-surface-hover: #1c2029;
+    --knb-bg-canvas: #eef4fa;
+    --knb-bg-surface: #ffffff;
+    --knb-bg-surface-2: #f5f6f8;
+    --knb-bg-surface-3: #eceef1;
+    --knb-bg-surface-hover: #f0f2f5;
 
     /* Borders */
-    --knb-border-subtle: #1f2430;
-    --knb-border: #2e3446;
-    --knb-border-strong: #3d4459;
+    --knb-border-subtle: #eef1f4;
+    --knb-border: #e0e4e9;
+    --knb-border-strong: #c7ccd3;
 
     /* Text */
-    --knb-text-primary: #e7e9f0;
-    --knb-text-secondary: #9aa2b8;
-    --knb-text-tertiary: #656d82;
-    --knb-text-on-accent: #05060a;
-    --knb-text-inverse: #0a0c10;
+    --knb-text-primary: #1f2933;
+    --knb-text-secondary: #5b6570;
+    --knb-text-tertiary: #8a9199;
+    --knb-text-on-accent: #ffffff;
+    --knb-text-inverse: #ffffff;
 
-    /* Accent (electric indigo) */
-    --knb-accent: #6d5efc;
-    --knb-accent-hover: #8172ff;
-    --knb-accent-active: #5a4cf0;
-    --knb-accent-subtle: rgba(109, 94, 252, 0.16);
-    --knb-accent-border: rgba(109, 94, 252, 0.45);
+    /* Accent (Kanso/Nextcloud-adjacent blue) */
+    --knb-accent: #0972ad;
+    --knb-accent-hover: #075d8f;
+    --knb-accent-active: #064a72;
+    --knb-accent-subtle: rgba(9, 114, 173, 0.1);
+    --knb-accent-border: rgba(9, 114, 173, 0.35);
 
     /* Status */
-    --knb-danger: #f65a6a;
-    --knb-danger-subtle: rgba(246, 90, 106, 0.14);
-    --knb-success: #35d399;
-    --knb-success-subtle: rgba(53, 211, 153, 0.14);
-    --knb-warning: #f2b84b;
-    --knb-warning-subtle: rgba(242, 184, 75, 0.14);
+    --knb-danger: #c0392b;
+    --knb-danger-subtle: rgba(192, 57, 43, 0.1);
+    --knb-success: #2f6f4f;
+    --knb-success-subtle: rgba(47, 111, 79, 0.1);
+    --knb-warning: #b5730a;
+    --knb-warning-subtle: rgba(181, 115, 10, 0.1);
 
     /* Typography */
     --knb-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
@@ -60,55 +61,56 @@
     --knb-space-6: 1.5rem;
     --knb-space-8: 2rem;
 
-    /* Radius — sharper edges, not fully rounded */
-    --knb-radius-sm: 4px;
-    --knb-radius-md: 6px;
-    --knb-radius-lg: 8px;
+    /* Radius — softer than the old sharp-corner direction; Kanso's cards
+       and pills read rounded, not sharp. */
+    --knb-radius-sm: 6px;
+    --knb-radius-md: 8px;
+    --knb-radius-lg: 12px;
     --knb-radius-full: 999px;
 
     /* Shadow + focus glow */
-    --knb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --knb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --knb-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
-    --knb-shadow-focus: 0 0 0 3px rgba(109, 94, 252, 0.35);
-
-    color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-    --knb-bg-canvas: #f6f7fb;
-    --knb-bg-surface: #ffffff;
-    --knb-bg-surface-2: #f0f1f6;
-    --knb-bg-surface-3: #e6e8f0;
-    --knb-bg-surface-hover: #eceef4;
-
-    --knb-border-subtle: #ebedf3;
-    --knb-border: #d8dbe6;
-    --knb-border-strong: #b7bbd0;
-
-    --knb-text-primary: #151824;
-    --knb-text-secondary: #565d75;
-    --knb-text-tertiary: #8890a6;
-    --knb-text-on-accent: #ffffff;
-    --knb-text-inverse: #ffffff;
-
-    --knb-accent: #5b4cf0;
-    --knb-accent-hover: #4a3ce0;
-    --knb-accent-active: #6d5efc;
-    --knb-accent-subtle: rgba(91, 76, 240, 0.1);
-    --knb-accent-border: rgba(91, 76, 240, 0.35);
-
-    --knb-danger: #d9364a;
-    --knb-danger-subtle: rgba(217, 54, 74, 0.1);
-    --knb-success: #1a9c6c;
-    --knb-success-subtle: rgba(26, 156, 108, 0.1);
-    --knb-warning: #b9770e;
-    --knb-warning-subtle: rgba(185, 119, 14, 0.1);
-
     --knb-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
     --knb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
     --knb-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
-    --knb-shadow-focus: 0 0 0 3px rgba(91, 76, 240, 0.25);
+    --knb-shadow-focus: 0 0 0 3px rgba(9, 114, 173, 0.3);
 
     color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    --knb-bg-canvas: #0b1220;
+    --knb-bg-surface: #121a2b;
+    --knb-bg-surface-2: #182234;
+    --knb-bg-surface-3: #202c42;
+    --knb-bg-surface-hover: #1a2436;
+
+    --knb-border-subtle: #1b2536;
+    --knb-border: #2a3650;
+    --knb-border-strong: #3a4864;
+
+    --knb-text-primary: #e8edf5;
+    --knb-text-secondary: #a3aec2;
+    --knb-text-tertiary: #6b7791;
+    --knb-text-on-accent: #ffffff;
+    --knb-text-inverse: #0b1220;
+
+    --knb-accent: #4fa8d8;
+    --knb-accent-hover: #6bb9e2;
+    --knb-accent-active: #3f8fb9;
+    --knb-accent-subtle: rgba(79, 168, 216, 0.16);
+    --knb-accent-border: rgba(79, 168, 216, 0.4);
+
+    --knb-danger: #e2685c;
+    --knb-danger-subtle: rgba(226, 104, 92, 0.16);
+    --knb-success: #4f9c78;
+    --knb-success-subtle: rgba(79, 156, 120, 0.16);
+    --knb-warning: #d99a3f;
+    --knb-warning-subtle: rgba(217, 154, 63, 0.16);
+
+    --knb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --knb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --knb-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --knb-shadow-focus: 0 0 0 3px rgba(79, 168, 216, 0.35);
+
+    color-scheme: dark;
 }

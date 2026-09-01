@@ -4,66 +4,82 @@ namespace Kanban.Theme;
 
 // Colors here must stay in sync with the --knb-* tokens in wwwroot/theme.css —
 // this is the same palette expressed for MudBlazor's C#-based theming, since
-// MudTheme can't read CSS custom properties.
+// MudTheme can't read CSS custom properties. PaletteLight is the shipped
+// default (Kanso-inspired); PaletteDark is a same-accent-family companion,
+// unused until a toggle exists — Kanso itself has no dark mode.
 public static class KanbanTheme
 {
     public static readonly MudTheme Theme = new()
     {
-        PaletteDark = new PaletteDark
-        {
-            Black = "#05060a",
-            Background = "#0a0c10",
-            BackgroundGray = "#12151b",
-            Surface = "#12151b",
-            DrawerBackground = "#12151b",
-            DrawerText = "#9aa2b8",
-            DrawerIcon = "#9aa2b8",
-            AppbarBackground = "#0a0c10",
-            AppbarText = "#e7e9f0",
-
-            Primary = "#6d5efc",
-            PrimaryDarken = "#5a4cf0",
-            PrimaryLighten = "#8172ff",
-
-            Secondary = "#22d3ee",
-            Info = "#3b82f6",
-            Success = "#35d399",
-            Warning = "#f2b84b",
-            Error = "#f65a6a",
-
-            TextPrimary = "#e7e9f0",
-            TextSecondary = "#9aa2b8",
-            TextDisabled = "#656d82",
-
-            LinesDefault = "#2e3446",
-            LinesInputs = "#3d4459",
-            TableLines = "#2e3446",
-
-            ActionDefault = "#9aa2b8",
-            ActionDisabled = "#454e63",
-
-            Divider = "#1f2430",
-        },
         PaletteLight = new PaletteLight
         {
-            Background = "#f6f7fb",
+            Black = "#1f2933",
+            Background = "#eef4fa",
+            BackgroundGray = "#f5f6f8",
             Surface = "#ffffff",
             DrawerBackground = "#ffffff",
+            DrawerText = "#5b6570",
+            DrawerIcon = "#5b6570",
             AppbarBackground = "#ffffff",
+            AppbarText = "#1f2933",
 
-            Primary = "#5b4cf0",
-            Secondary = "#0891a8",
-            Info = "#3b82f6",
-            Success = "#1a9c6c",
-            Warning = "#b9770e",
-            Error = "#d9364a",
+            Primary = "#0972ad",
+            PrimaryDarken = "#064a72",
+            PrimaryLighten = "#4a9dc9",
 
-            TextPrimary = "#151824",
-            TextSecondary = "#565d75",
+            Secondary = "#2f6f4f",
+            Info = "#0972ad",
+            Success = "#2f6f4f",
+            Warning = "#b5730a",
+            Error = "#c0392b",
 
-            LinesDefault = "#d8dbe6",
-            LinesInputs = "#b7bbd0",
-            Divider = "#ebedf3",
+            TextPrimary = "#1f2933",
+            TextSecondary = "#5b6570",
+            TextDisabled = "#8a9199",
+
+            LinesDefault = "#e0e4e9",
+            LinesInputs = "#c7ccd3",
+            TableLines = "#e0e4e9",
+
+            ActionDefault = "#5b6570",
+            ActionDisabled = "#c7ccd3",
+
+            Divider = "#eef1f4",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Black = "#05070c",
+            Background = "#0b1220",
+            BackgroundGray = "#121a2b",
+            Surface = "#121a2b",
+            DrawerBackground = "#121a2b",
+            DrawerText = "#a3aec2",
+            DrawerIcon = "#a3aec2",
+            AppbarBackground = "#0b1220",
+            AppbarText = "#e8edf5",
+
+            Primary = "#4fa8d8",
+            PrimaryDarken = "#3f8fb9",
+            PrimaryLighten = "#6bb9e2",
+
+            Secondary = "#4f9c78",
+            Info = "#4fa8d8",
+            Success = "#4f9c78",
+            Warning = "#d99a3f",
+            Error = "#e2685c",
+
+            TextPrimary = "#e8edf5",
+            TextSecondary = "#a3aec2",
+            TextDisabled = "#6b7791",
+
+            LinesDefault = "#2a3650",
+            LinesInputs = "#3a4864",
+            TableLines = "#2a3650",
+
+            ActionDefault = "#a3aec2",
+            ActionDisabled = "#3a4864",
+
+            Divider = "#1b2536",
         },
         Typography = new Typography
         {
@@ -74,7 +90,7 @@ public static class KanbanTheme
         },
         LayoutProperties = new LayoutProperties
         {
-            DefaultBorderRadius = "6px",
+            DefaultBorderRadius = "8px",
             DrawerWidthLeft = "260px",
             AppbarHeight = "56px",
         },

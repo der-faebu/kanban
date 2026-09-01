@@ -93,6 +93,9 @@ else
     [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
+    [Inject]
+    private IJwtTokenService JwtTokenService { get; set; } = null!;
+
     private Board? board;
     private System.Collections.Generic.List<List>? lists;
     private bool loading = true;
@@ -153,7 +156,13 @@ else
     private async Task InitializeSignalR()
     {
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/sync"))
+            .WithUrl(NavigationManager.ToAbsoluteUri("/sync"), options =>
+            {
+                // This connection is opened from server-side component code, not the browser,
+                // so it never carries the user's Identity cookie. Authenticate it with a
+                // short-lived JWT instead, minted fresh on every (re)connect attempt.
+                options.AccessTokenProvider = () => Task.FromResult<string?>(JwtTokenService.CreateToken(userId!));
+            })
             .WithAutomaticReconnect()
             .Build();
 

@@ -2,19 +2,18 @@
 @inject NavigationManager NavigationManager
 
 <MudNavMenu Class="pt-4 px-2">
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
     <MudNavLink Href="boards" Icon="@Icons.Material.Filled.ViewKanban">Boards</MudNavLink>
 
     <AuthorizeView>
         <Authorized>
             <MudDivider Class="my-2" />
-            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
-            <form action="Account/Logout" method="post">
+            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person" Class="truncate">@context.User.Identity?.Name</MudNavLink>
+            <form action="Account/Logout" method="post" class="w-full">
                 <AntiforgeryToken />
                 <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                <button type="submit" class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-ink-muted hover:bg-surface-hover hover:text-ink transition-colors">
-                    <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" />
-                    Logout
+                <button type="submit" class="mud-nav-link mud-ripple w-full appearance-none border-0 bg-transparent text-left font-sans cursor-pointer">
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Class="mud-nav-link-icon mud-nav-link-icon-default" />
+                    <span class="mud-nav-link-text">Logout</span>
                 </button>
             </form>
         </Authorized>

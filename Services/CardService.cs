@@ -10,6 +10,7 @@ public interface ICardService
     Task<Card?> GetCardByIdAsync(int cardId, string userId);
     Task<List<Card>> GetListCardsAsync(int listId, string userId);
     Task UpdateCardAsync(int cardId, string userId, string title, string description, DateTime? dueDate);
+    Task SetCardPriorityAsync(int cardId, string userId, CardPriority? priority);
     Task MoveCardAsync(int cardId, string userId, int targetListId, int position);
     Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions);
     Task SoftDeleteCardAsync(int cardId, string userId);
@@ -113,6 +114,29 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         var metadata = new { title, description, dueDate };
         await activityLogService.LogAsync(cardId, userId, ActivityType.CardUpdated, metadata);
         await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardUpdated, userId, metadata, DateTime.UtcNow);
+    }
+
+    public async Task SetCardPriorityAsync(int cardId, string userId, CardPriority? priority)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = card.List.BoardId;
+        card.Priority = priority;
+        card.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardPriorityChangedAsync(boardId, cardId, priority);
+
+        var metadata = new { priority = priority?.ToString() };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.PriorityChanged, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.PriorityChanged, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)

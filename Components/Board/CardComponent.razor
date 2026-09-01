@@ -13,9 +13,13 @@
         {
             <small class="due-date">Due: @Card.DueDate.Value.ToShortDateString()</small>
         }
-        @if (labels.Count > 0 || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0 || attachmentCount > 0)
+        @if (Card.Priority.HasValue || labels.Count > 0 || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0 || attachmentCount > 0)
         {
             <div class="badge-row">
+                @if (Card.Priority.HasValue)
+                {
+                    <span class="priority-badge" style="@PriorityStyle(Card.Priority.Value)">@CardPriorityStyles.Label(Card.Priority.Value)</span>
+                }
                 @foreach (var label in labels)
                 {
                     <span class="label-chip" style="background-color:@label.Color" title="@label.Name"></span>
@@ -145,6 +149,17 @@
         font-size: 11px;
         color: var(--knb-text-tertiary);
     }
+
+    .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        padding: 1px 6px;
+        border-radius: var(--knb-radius-full);
+    }
 </style>
 
 @code {
@@ -218,6 +233,12 @@
         {
             Console.WriteLine($"Error loading card badges: {ex.Message}");
         }
+    }
+
+    private static string PriorityStyle(CardPriority priority)
+    {
+        var (fg, bg) = CardPriorityStyles.Colors(priority);
+        return $"color:{fg};background-color:{bg}";
     }
 
     private static string Initials(ApplicationUser user)

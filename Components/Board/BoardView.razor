@@ -161,6 +161,7 @@ else
         hubConnection.On<dynamic>("CardUpdated", async (data) => await OnCardUpdated(data));
         hubConnection.On<dynamic>("CardMoved", async (data) => await OnCardMoved(data));
         hubConnection.On<dynamic>("CardDeleted", async (data) => await OnCardDeleted(data));
+        hubConnection.On<dynamic>("CardPriorityChanged", async (data) => await OnCardBadgesChanged(data));
         hubConnection.On<dynamic>("ListCreated", async (data) => await OnListCreated(data));
         hubConnection.On<dynamic>("ListUpdated", async (data) => await OnListUpdated(data));
         hubConnection.On<dynamic>("ListReordered", async (data) => await OnListReordered(data));

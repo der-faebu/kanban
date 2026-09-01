@@ -18,5 +18,6 @@ public enum ActivityType
     ChecklistItemToggled,
     ChecklistItemDeleted,
     AttachmentAdded,
-    AttachmentDeleted
+    AttachmentDeleted,
+    PriorityChanged
 }

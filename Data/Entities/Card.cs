@@ -9,6 +9,7 @@ public class Card
     public string Description { get; set; } = string.Empty;
     public int Position { get; set; }
     public DateTime? DueDate { get; set; }
+    public CardPriority? Priority { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

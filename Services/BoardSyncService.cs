@@ -10,6 +10,7 @@ public interface IBoardSyncService
     Task BroadcastCardUpdatedAsync(int boardId, int cardId, string title, string description, DateTime? dueDate);
     Task BroadcastCardMovedAsync(int boardId, int cardId, int sourceListId, int targetListId, int position);
     Task BroadcastCardDeletedAsync(int boardId, int cardId);
+    Task BroadcastCardPriorityChangedAsync(int boardId, int cardId, CardPriority? priority);
     Task BroadcastListCreatedAsync(int boardId, int listId, string name);
     Task BroadcastListUpdatedAsync(int boardId, int listId, string name);
     Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions);
@@ -56,6 +57,12 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("CardDeleted", new { cardId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardPriorityChangedAsync(int boardId, int cardId, CardPriority? priority)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardPriorityChanged", new { cardId, priority, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastListCreatedAsync(int boardId, int listId, string name)

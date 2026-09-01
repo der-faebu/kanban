@@ -37,6 +37,13 @@ else
 
         <MudDatePicker Label="Due date" Date="dueDate" DateChanged="HandleDueDateChanged" Variant="Variant.Outlined" Clearable="true" Editable="true" />
 
+        <MudSelect T="CardPriority?" Value="priority" ValueChanged="HandlePriorityChanged" Label="Priority" Variant="Variant.Outlined" Clearable="true">
+            @foreach (var level in Enum.GetValues<CardPriority>())
+            {
+                <MudSelectItem T="CardPriority?" Value="level">@CardPriorityStyles.Label(level)</MudSelectItem>
+            }
+        </MudSelect>
+
         <MudPaper Outlined="true" Class="p-4">
             <MudText Typo="Typo.subtitle2" Class="mb-2">Labels</MudText>
             <div class="mb-2 flex flex-wrap gap-2">
@@ -334,6 +341,7 @@ else
     private string title = string.Empty;
     private string description = string.Empty;
     private DateTime? dueDate;
+    private CardPriority? priority;
 
     private List<Label> cardLabels = [];
     private List<Label> boardLabels = [];
@@ -402,6 +410,7 @@ else
             title = card.Title;
             description = card.Description;
             dueDate = card.DueDate;
+            priority = card.Priority;
 
             cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
             boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
@@ -436,6 +445,7 @@ else
             .Build();
 
         hubConnection.On<JsonElement>("CardUpdated", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardPriorityChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
@@ -499,6 +509,22 @@ else
     {
         dueDate = newDate;
         await SaveCardFields();
+    }
+
+    private async Task HandlePriorityChanged(CardPriority? newPriority)
+    {
+        priority = newPriority;
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetCardPriorityAsync(CardId, userId, newPriority);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating card priority: {ex.Message}");
+        }
     }
 
     private async Task AddLabel(int labelId)
@@ -788,6 +814,7 @@ else
             ActivityType.ChecklistItemDeleted => $"{actor} deleted checklist item \"{Get("text")}\"",
             ActivityType.AttachmentAdded => $"{actor} attached a file",
             ActivityType.AttachmentDeleted => $"{actor} removed an attachment",
+            ActivityType.PriorityChanged => string.IsNullOrEmpty(Get("priority")) ? $"{actor} cleared the priority" : $"{actor} set priority to {Get("priority")}",
             _ => $"{actor} made a change"
         };
     }

@@ -15,7 +15,7 @@ public interface IChecklistService
     Task ReorderItemsAsync(int cardId, string userId, List<(int ItemId, int Position)> positions);
 }
 
-public class ChecklistService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService) : IChecklistService
+public class ChecklistService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService, IActivityLogService activityLogService) : IChecklistService
 {
     public async Task<ChecklistItem> AddItemAsync(int cardId, string userId, string text)
     {
@@ -44,6 +44,11 @@ public class ChecklistService(IDbContextFactory<ApplicationDbContext> contextFac
         context.ChecklistItems.Add(item);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastChecklistItemAddedAsync(card.List.BoardId, cardId, item.Id, item.Text, item.Position);
+
+        var metadata = new { itemId = item.Id, text = item.Text };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.ChecklistItemAdded, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(card.List.BoardId, cardId, ActivityType.ChecklistItemAdded, userId, metadata, DateTime.UtcNow);
+
         return item;
     }
 
@@ -118,6 +123,10 @@ public class ChecklistService(IDbContextFactory<ApplicationDbContext> contextFac
         item.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastChecklistItemUpdatedAsync(item.Card.List.BoardId, item.CardId, itemId, item.Text, item.IsDone);
+
+        var metadata = new { itemId, text = item.Text, isDone = item.IsDone };
+        await activityLogService.LogAsync(item.CardId, userId, ActivityType.ChecklistItemToggled, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(item.Card.List.BoardId, item.CardId, ActivityType.ChecklistItemToggled, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task DeleteItemAsync(int itemId, string userId)
@@ -135,9 +144,14 @@ public class ChecklistService(IDbContextFactory<ApplicationDbContext> contextFac
 
         var boardId = item.Card.List.BoardId;
         var cardId = item.CardId;
+        var itemText = item.Text;
         context.ChecklistItems.Remove(item);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastChecklistItemDeletedAsync(boardId, cardId, itemId);
+
+        var metadata = new { itemId, text = itemText };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.ChecklistItemDeleted, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.ChecklistItemDeleted, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task ReorderItemsAsync(int cardId, string userId, List<(int ItemId, int Position)> positions)

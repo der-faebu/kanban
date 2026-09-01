@@ -16,6 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<CardActivity> CardActivities => Set<CardActivity>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -129,6 +130,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(a => a.UploadedBy)
             .WithMany()
             .HasForeignKey(a => a.UploadedByUserId)
+            .IsRequired();
+
+        builder.Entity<CardActivity>()
+            .HasOne(a => a.Card)
+            .WithMany()
+            .HasForeignKey(a => a.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardActivity>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
             .IsRequired();
     }
 }

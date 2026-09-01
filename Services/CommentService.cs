@@ -13,7 +13,7 @@ public interface ICommentService
     Task DeleteCommentAsync(int commentId, string userId);
 }
 
-public class CommentService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardService boardService, IBoardSyncService boardSyncService) : ICommentService
+public class CommentService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardService boardService, IBoardSyncService boardSyncService, IActivityLogService activityLogService) : ICommentService
 {
     public async Task<Comment> AddCommentAsync(int cardId, string userId, string text)
     {
@@ -41,6 +41,11 @@ public class CommentService(IDbContextFactory<ApplicationDbContext> contextFacto
         context.Comments.Add(comment);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCommentAddedAsync(card.List.BoardId, cardId, comment.Id, userId, comment.Text, comment.CreatedAt);
+
+        var metadata = new { commentId = comment.Id };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.CommentAdded, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(card.List.BoardId, cardId, ActivityType.CommentAdded, userId, metadata, DateTime.UtcNow);
+
         return comment;
     }
 
@@ -97,6 +102,10 @@ public class CommentService(IDbContextFactory<ApplicationDbContext> contextFacto
         comment.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCommentUpdatedAsync(comment.Card.List.BoardId, comment.CardId, commentId, comment.Text, comment.UpdatedAt);
+
+        var metadata = new { commentId };
+        await activityLogService.LogAsync(comment.CardId, userId, ActivityType.CommentUpdated, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(comment.Card.List.BoardId, comment.CardId, ActivityType.CommentUpdated, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task DeleteCommentAsync(int commentId, string userId)
@@ -121,5 +130,9 @@ public class CommentService(IDbContextFactory<ApplicationDbContext> contextFacto
         comment.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCommentDeletedAsync(boardId, comment.CardId, commentId);
+
+        var metadata = new { commentId };
+        await activityLogService.LogAsync(comment.CardId, userId, ActivityType.CommentDeleted, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, comment.CardId, ActivityType.CommentDeleted, userId, metadata, DateTime.UtcNow);
     }
 }

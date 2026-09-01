@@ -196,6 +196,19 @@ else
                 <p class="upload-error">@uploadError</p>
             }
         </div>
+
+        <div class="field">
+            <label>Activity</label>
+            <div class="activity-list">
+                @foreach (var entry in activityLog)
+                {
+                    <div class="activity-entry">
+                        <span class="activity-text">@FormatActivity(entry)</span>
+                        <span class="activity-time">@entry.CreatedAt.ToLocalTime().ToString("g")</span>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 }
 
@@ -401,6 +414,28 @@ else
         font-size: 13px;
         margin-top: 4px;
     }
+
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .activity-entry {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 13px;
+        padding: 3px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .activity-time {
+        color: #999;
+        white-space: nowrap;
+    }
 </style>
 
 @code {
@@ -427,6 +462,9 @@ else
 
     [Inject]
     private IAttachmentService AttachmentService { get; set; } = null!;
+
+    [Inject]
+    private IActivityLogService ActivityLogService { get; set; } = null!;
 
     [Inject]
     private Microsoft.Extensions.Options.IOptions<AttachmentsOptions> AttachmentSettings { get; set; } = null!;
@@ -472,6 +510,7 @@ else
     private int listId;
     private List<Attachment> attachments = [];
     private string? uploadError;
+    private List<CardActivity> activityLog = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -523,6 +562,7 @@ else
             comments = await CommentService.GetCardCommentsAsync(CardId, userId);
             checklistItems = await ChecklistService.GetItemsAsync(CardId, userId);
             attachments = await AttachmentService.GetAttachmentsAsync(CardId, userId);
+            activityLog = await ActivityLogService.GetCardActivityAsync(CardId, userId);
 
             authorNames = boardMembers
                 .Where(m => m.User != null)
@@ -561,6 +601,7 @@ else
         hubConnection.On<JsonElement>("ChecklistReordered", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AttachmentAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AttachmentDeleted", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ActivityLogged", async data => await RefreshIfForThisCard(data));
         // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
         hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
         hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
@@ -864,6 +905,44 @@ else
         {
             Console.WriteLine($"Error deleting comment: {ex.Message}");
         }
+    }
+
+    private string FormatActivity(CardActivity entry)
+    {
+        var actor = AuthorName(entry.UserId);
+        JsonElement meta = default;
+        if (!string.IsNullOrEmpty(entry.Metadata))
+        {
+            try { meta = JsonDocument.Parse(entry.Metadata).RootElement; }
+            catch (JsonException) { /* malformed/legacy metadata; render without details */ }
+        }
+
+        string Get(string key) =>
+            meta.ValueKind == JsonValueKind.Object && meta.TryGetProperty(key, out var v)
+                ? v.ToString()
+                : string.Empty;
+
+        return entry.ActivityType switch
+        {
+            ActivityType.CardCreated => $"{actor} created this card",
+            ActivityType.CardUpdated => $"{actor} updated the card details",
+            ActivityType.CardMoved => $"{actor} moved this card",
+            ActivityType.CardSoftDeleted => $"{actor} deleted this card",
+            ActivityType.CardRestored => $"{actor} restored this card",
+            ActivityType.LabelAdded => $"{actor} added label \"{Get("labelName")}\"",
+            ActivityType.LabelRemoved => $"{actor} removed a label",
+            ActivityType.AssigneeAdded => $"{actor} assigned {AuthorName(Get("assigneeUserId"))}",
+            ActivityType.AssigneeRemoved => $"{actor} unassigned {AuthorName(Get("assigneeUserId"))}",
+            ActivityType.CommentAdded => $"{actor} commented",
+            ActivityType.CommentUpdated => $"{actor} edited a comment",
+            ActivityType.CommentDeleted => $"{actor} deleted a comment",
+            ActivityType.ChecklistItemAdded => $"{actor} added checklist item \"{Get("text")}\"",
+            ActivityType.ChecklistItemToggled => $"{actor} {(Get("isDone") == "True" ? "checked" : "unchecked")} \"{Get("text")}\"",
+            ActivityType.ChecklistItemDeleted => $"{actor} deleted checklist item \"{Get("text")}\"",
+            ActivityType.AttachmentAdded => $"{actor} attached a file",
+            ActivityType.AttachmentDeleted => $"{actor} removed an attachment",
+            _ => $"{actor} made a change"
+        };
     }
 
     private string DownloadUrl(int attachmentId) => $"/api/lists/{listId}/cards/{CardId}/attachments/{attachmentId}/download";

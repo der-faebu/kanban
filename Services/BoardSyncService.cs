@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Kanban.Data.Entities;
 using Kanban.Hubs;
 
 namespace Kanban.Services;
@@ -28,6 +29,7 @@ public interface IBoardSyncService
     Task BroadcastChecklistReorderedAsync(int boardId, int cardId, List<(int ItemId, int Position)> positions);
     Task BroadcastAttachmentAddedAsync(int boardId, int cardId, int attachmentId, string fileName, string uploadedByUserId);
     Task BroadcastAttachmentDeletedAsync(int boardId, int cardId, int attachmentId);
+    Task BroadcastActivityLoggedAsync(int boardId, int cardId, ActivityType activityType, string userId, object metadata, DateTime createdAt);
 }
 
 public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSyncService
@@ -172,5 +174,11 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("AttachmentDeleted", new { cardId, attachmentId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastActivityLoggedAsync(int boardId, int cardId, ActivityType activityType, string userId, object metadata, DateTime createdAt)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ActivityLogged", new { cardId, activityType = activityType.ToString(), userId, metadata, createdAt, timestamp = DateTime.UtcNow });
     }
 }

@@ -22,7 +22,7 @@ public interface ICardService
     Task<List<Label>> GetCardLabelsAsync(int cardId, string userId);
 }
 
-public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService) : ICardService
+public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService, IActivityLogService activityLogService) : ICardService
 {
     public async Task<Card> CreateCardAsync(int listId, string userId, string title, string description)
     {
@@ -52,6 +52,11 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         context.Cards.Add(card);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCardCreatedAsync(list.BoardId, card.Id, card.Title, card.ListId);
+
+        var metadata = new { title = card.Title, listId = card.ListId };
+        await activityLogService.LogAsync(card.Id, userId, ActivityType.CardCreated, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(list.BoardId, card.Id, ActivityType.CardCreated, userId, metadata, DateTime.UtcNow);
+
         return card;
     }
 
@@ -104,6 +109,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCardUpdatedAsync(boardId, cardId, title, description, dueDate);
+
+        var metadata = new { title, description, dueDate };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.CardUpdated, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardUpdated, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)
@@ -129,6 +138,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCardMovedAsync(boardId, cardId, sourceListId, targetListId, position);
+
+        var metadata = new { sourceListId, targetListId, position };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.CardMoved, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardMoved, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions)
@@ -177,6 +190,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCardDeletedAsync(boardId, cardId);
+
+        var metadata = new { };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.CardSoftDeleted, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardSoftDeleted, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task RestoreCardAsync(int cardId, string userId)
@@ -191,9 +208,14 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         if (!isMember)
             throw new InvalidOperationException("User is not a board member");
 
+        var boardId = card.List.BoardId;
         card.IsDeleted = false;
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
+
+        var metadata = new { };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.CardRestored, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardRestored, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task AddAssigneeAsync(int cardId, string userId, string assigneeUserId)
@@ -221,6 +243,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         context.CardAssignees.Add(cardAssignee);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastAssigneeAddedAsync(boardId, cardId, assigneeUserId);
+
+        var metadata = new { assigneeUserId };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.AssigneeAdded, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.AssigneeAdded, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task RemoveAssigneeAsync(int cardId, string userId, string assigneeUserId)
@@ -242,6 +268,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
             context.CardAssignees.Remove(cardAssignee);
             await context.SaveChangesAsync();
             await boardSyncService.BroadcastAssigneeRemovedAsync(boardId, cardId, assigneeUserId);
+
+            var metadata = new { assigneeUserId };
+            await activityLogService.LogAsync(cardId, userId, ActivityType.AssigneeRemoved, metadata);
+            await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.AssigneeRemoved, userId, metadata, DateTime.UtcNow);
         }
     }
 
@@ -288,6 +318,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         context.CardLabels.Add(cardLabel);
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastLabelAddedAsync(boardId, cardId, labelId);
+
+        var metadata = new { labelId, labelName = label.Name };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.LabelAdded, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.LabelAdded, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task RemoveLabelAsync(int cardId, string userId, int labelId)
@@ -309,6 +343,10 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
             context.CardLabels.Remove(cardLabel);
             await context.SaveChangesAsync();
             await boardSyncService.BroadcastLabelRemovedAsync(boardId, cardId, labelId);
+
+            var metadata = new { labelId };
+            await activityLogService.LogAsync(cardId, userId, ActivityType.LabelRemoved, metadata);
+            await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.LabelRemoved, userId, metadata, DateTime.UtcNow);
         }
     }
 

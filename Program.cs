@@ -89,6 +89,7 @@ builder.Services.AddScoped<ILabelService, LabelService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.Configure<AttachmentsOptions>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
@@ -132,6 +133,7 @@ app.MapLabelEndpoints();
 app.MapCommentEndpoints();
 app.MapChecklistEndpoints();
 app.MapAttachmentEndpoints();
+app.MapActivityLogEndpoints();
 app.MapTrelloImportEndpoints();
 
 // Map SignalR hubs

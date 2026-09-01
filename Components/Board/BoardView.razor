@@ -45,7 +45,7 @@ else
 <div class="toast-container">
     @foreach (var toast in toasts)
     {
-        <div class="toast" @key="toast.Id">@toast.Text</div>
+        <div class="toast toast-@(toast.Kind.ToString().ToLowerInvariant())" @key="toast.Id">@toast.Text</div>
     }
 </div>
 
@@ -61,14 +61,27 @@ else
     }
 
     .toast {
-        background: var(--knb-bg-surface-3);
+        background: var(--knb-bg-surface);
         color: var(--knb-text-primary);
         border: 1px solid var(--knb-border);
+        border-left: 3px solid var(--knb-accent);
         padding: 10px 16px;
         border-radius: var(--knb-radius-md);
         font-size: 14px;
         box-shadow: var(--knb-shadow-md);
         animation: toast-in 0.2s ease-out;
+    }
+
+    .toast-success {
+        border-left-color: var(--knb-success);
+    }
+
+    .toast-danger {
+        border-left-color: var(--knb-danger);
+    }
+
+    .toast-info {
+        border-left-color: var(--knb-accent);
     }
 
     @@keyframes toast-in {
@@ -100,11 +113,13 @@ else
     private HubConnection? hubConnection;
     private readonly System.Collections.Generic.List<ToastMessage> toasts = [];
 
-    private record ToastMessage(string Id, string Text);
+    private enum ToastKind { Success, Info, Danger }
 
-    private async Task ShowToast(string text)
+    private record ToastMessage(string Id, string Text, ToastKind Kind);
+
+    private async Task ShowToast(string text, ToastKind kind)
     {
-        var toast = new ToastMessage(Guid.NewGuid().ToString(), text);
+        var toast = new ToastMessage(Guid.NewGuid().ToString(), text, kind);
 
         await InvokeAsync(() =>
         {
@@ -208,22 +223,22 @@ else
         StateHasChanged();
     }
 
-    private async Task RefreshAndNotify(string message)
+    private async Task RefreshAndNotify(string message, ToastKind kind)
     {
         await LoadBoardData();
         StateHasChanged();
-        await ShowToast(message);
+        await ShowToast(message, kind);
     }
 
-    private Task OnCardCreated(dynamic data) => RefreshAndNotify("A card was added");
-    private Task OnCardUpdated(dynamic data) => RefreshAndNotify("A card was updated");
-    private Task OnCardMoved(dynamic data) => RefreshAndNotify("A card was moved");
-    private Task OnCardDeleted(dynamic data) => RefreshAndNotify("A card was removed");
-    private Task OnListCreated(dynamic data) => RefreshAndNotify("A list was added");
-    private Task OnListUpdated(dynamic data) => RefreshAndNotify("A list was renamed");
-    private Task OnListReordered(dynamic data) => RefreshAndNotify("Lists were reordered");
-    private Task OnListDeleted(dynamic data) => RefreshAndNotify("A list was removed");
-    private Task OnCardBadgesChanged(dynamic data) => RefreshAndNotify("A card was updated");
+    private Task OnCardCreated(dynamic data) => RefreshAndNotify("A card was added", ToastKind.Success);
+    private Task OnCardUpdated(dynamic data) => RefreshAndNotify("A card was updated", ToastKind.Info);
+    private Task OnCardMoved(dynamic data) => RefreshAndNotify("A card was moved", ToastKind.Info);
+    private Task OnCardDeleted(dynamic data) => RefreshAndNotify("A card was removed", ToastKind.Danger);
+    private Task OnListCreated(dynamic data) => RefreshAndNotify("A list was added", ToastKind.Success);
+    private Task OnListUpdated(dynamic data) => RefreshAndNotify("A list was renamed", ToastKind.Info);
+    private Task OnListReordered(dynamic data) => RefreshAndNotify("Lists were reordered", ToastKind.Info);
+    private Task OnListDeleted(dynamic data) => RefreshAndNotify("A list was removed", ToastKind.Danger);
+    private Task OnCardBadgesChanged(dynamic data) => RefreshAndNotify("A card was updated", ToastKind.Info);
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {

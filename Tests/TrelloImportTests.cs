@@ -229,6 +229,72 @@ public class TrelloImportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ImportTrello_WithDueDate_MapsDueDateCorrectly()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Import Test", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        var dueDate = new DateTime(2027, 3, 15, 0, 0, 0, DateTimeKind.Utc);
+        var trelloJson = CreateTrelloJsonWithDueDate(dueDate);
+        using var content = new MultipartFormDataContent();
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(trelloJson));
+        content.Add(new StreamContent(stream), "file", "export.json");
+
+        var response = await _client.PostAsync($"/api/import/trello/{boardId}", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope2 = _factory.Services.CreateScope();
+        var dbContext2 = scope2.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var card = await dbContext2.Cards.SingleAsync();
+        Assert.Equal(dueDate, card.DueDate);
+    }
+
+    [Fact]
+    public async Task ImportTrello_WithLabels_CreatesLabelsAndAssignsToCard()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Import Test", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        var trelloJson = CreateTrelloJsonWithLabel("label1", "Bug", "red");
+        using var content = new MultipartFormDataContent();
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(trelloJson));
+        content.Add(new StreamContent(stream), "file", "export.json");
+
+        var response = await _client.PostAsync($"/api/import/trello/{boardId}", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope2 = _factory.Services.CreateScope();
+        var dbContext2 = scope2.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var label = await dbContext2.Labels.SingleAsync();
+        Assert.Equal("Bug", label.Name);
+        Assert.Equal("#dc3545", label.Color);
+
+        var cardLabels = await dbContext2.CardLabels.ToListAsync();
+        Assert.Single(cardLabels);
+        Assert.Equal(label.Id, cardLabels[0].LabelId);
+    }
+
+    [Fact]
     public async Task ImportTrello_WithCommentActions_CreatesComments()
     {
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
@@ -383,6 +449,53 @@ public class TrelloImportTests : IAsyncLifetime
                     }
                 }
             }
+        };
+
+        return JsonSerializer.Serialize(trelloBoard);
+    }
+
+    private string CreateTrelloJsonWithDueDate(DateTime dueDate)
+    {
+        var trelloBoard = new
+        {
+            id = "board123",
+            name = "Test Board",
+            desc = "Test Description",
+            lists = new[]
+            {
+                new { id = "list1", name = "To Do", pos = 0 }
+            },
+            cards = new[]
+            {
+                new { id = "card1", name = "Card with Due Date", desc = "Description", idList = "list1", pos = 0, due = (DateTime?)dueDate, idMembers = new string[0], idLabels = new string[0] }
+            },
+            labels = new object[0],
+            members = new object[0]
+        };
+
+        return JsonSerializer.Serialize(trelloBoard);
+    }
+
+    private string CreateTrelloJsonWithLabel(string labelId, string labelName, string labelColor)
+    {
+        var trelloBoard = new
+        {
+            id = "board123",
+            name = "Test Board",
+            desc = "Test Description",
+            lists = new[]
+            {
+                new { id = "list1", name = "To Do", pos = 0 }
+            },
+            cards = new[]
+            {
+                new { id = "card1", name = "Card with Label", desc = "Description", idList = "list1", pos = 0, due = (DateTime?)null, idMembers = new string[0], idLabels = new[] { labelId } }
+            },
+            labels = new[]
+            {
+                new { id = labelId, name = labelName, color = labelColor }
+            },
+            members = new object[0]
         };
 
         return JsonSerializer.Serialize(trelloBoard);

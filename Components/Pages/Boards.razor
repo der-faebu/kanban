@@ -47,23 +47,8 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h5 class="card-title">Import Trello Board</h5>
-                @if (boards != null && boards.Count > 0)
-                {
-                    <div class="mb-3">
-                        <label class="form-label">Select board to import into:</label>
-                        <select @bind="selectedBoardForImport" class="form-control">
-                            <option value="0">-- Create New Board --</option>
-                            @foreach (var board in boards.Where(b => b.OwnerId == userId))
-                            {
-                                <option value="@board.Id">@board.Name</option>
-                            }
-                        </select>
-                    </div>
-                }
-                @if (selectedBoardForImport == 0 || selectedBoardForImport > 0)
-                {
-                    <ImportTrelloForm BoardId="@(selectedBoardForImport > 0 ? selectedBoardForImport : 0)" OnImportComplete="HandleImportComplete" />
-                }
+                <p class="text-muted">Importing always creates a new board from the Trello export.</p>
+                <ImportTrelloForm OnImportComplete="HandleImportComplete" />
                 <button type="button" @onclick="ToggleImportForm" class="btn btn-secondary mt-3">Cancel</button>
             </div>
         </div>
@@ -121,7 +106,6 @@
     private bool showImportForm = false;
     private string? userId;
     private Board newBoard = new();
-    private int selectedBoardForImport = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,10 +185,6 @@
     private void ToggleImportForm()
     {
         showImportForm = !showImportForm;
-        if (!showImportForm)
-        {
-            selectedBoardForImport = 0;
-        }
     }
 
     private async Task HandleImportComplete(TrelloImportResult result)
@@ -213,7 +193,6 @@
         {
             await LoadBoards();
             showImportForm = false;
-            selectedBoardForImport = 0;
         }
     }
 }

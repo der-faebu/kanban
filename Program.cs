@@ -42,20 +42,17 @@ authenticationBuilder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme);
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IConfiguration>((options, configuration) =>
     {
-        var jwtSection = configuration.GetSection("Jwt");
-        var jwtIssuer = jwtSection["Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer not configured");
-        var jwtAudience = jwtSection["Audience"] ?? throw new InvalidOperationException("Jwt:Audience not configured");
-        var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key not configured");
+        var jwtSettings = JwtSettings.FromConfiguration(configuration);
 
         options.MapInboundClaims = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
+            ValidIssuer = jwtSettings.Issuer,
             ValidateAudience = true,
-            ValidAudience = jwtAudience,
+            ValidAudience = jwtSettings.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
             ValidateLifetime = true,
         };
     });
@@ -96,6 +93,7 @@ builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.Configure<AttachmentsOptions>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<DragDropState>();
 
 var app = builder.Build();

@@ -43,6 +43,10 @@ public static class BoardEndpoints
         boardGroup.MapGet("/{boardId}/members", GetBoardMembers)
             .Produces<List<object>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        boardGroup.MapPost("/{boardId}/members/resolve-names", ResolveUserNames)
+            .Produces<List<object>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> CreateBoard(HttpContext context, IBoardService boardService, CreateBoardRequest request)
@@ -159,6 +163,23 @@ public static class BoardEndpoints
         {
             var members = await boardService.GetBoardMembersAsync(boardId, userId);
             return Results.Ok(members);
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> ResolveUserNames(HttpContext context, IBoardService boardService, int boardId, ResolveUserNamesRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var names = await boardService.GetUsersByIdsAsync(boardId, userId, request.UserIds);
+            return Results.Ok(names);
         }
         catch (InvalidOperationException)
         {

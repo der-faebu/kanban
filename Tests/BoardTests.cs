@@ -217,6 +217,135 @@ public class BoardTests : IAsyncLifetime
         Assert.Single(members!);
     }
 
+    [Fact]
+    public async Task ResolveUserNames_IncludesOwner_EvenThoughOwnerIsNotABoardMemberRow()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Test Board", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        var request = new ResolveUserNamesRequest { UserIds = [_userId] };
+        var response = await _client.PostAsJsonAsync($"/api/boards/{boardId}/members/resolve-names", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resolved = await response.Content.ReadFromJsonAsync<List<ResolvedUserName>>();
+        Assert.NotNull(resolved);
+        var ownerEntry = Assert.Single(resolved!);
+        Assert.Equal(_userId, ownerEntry.Id);
+        Assert.Equal($"user_{_userId}", ownerEntry.DisplayName);
+    }
+
+    [Fact]
+    public async Task ResolveUserNames_IncludesFormerMember_NoLongerInBoardMembers()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Test Board", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+
+            var member = new BoardMember { BoardId = boardId, UserId = _secondUserId, Role = BoardMemberRole.Member };
+            dbContext.BoardMembers.Add(member);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.BoardMembers.Remove(member);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var request = new ResolveUserNamesRequest { UserIds = [_secondUserId] };
+        var response = await _client.PostAsJsonAsync($"/api/boards/{boardId}/members/resolve-names", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resolved = await response.Content.ReadFromJsonAsync<List<ResolvedUserName>>();
+        Assert.NotNull(resolved);
+        var formerMemberEntry = Assert.Single(resolved!);
+        Assert.Equal(_secondUserId, formerMemberEntry.Id);
+    }
+
+    [Fact]
+    public async Task ResolveUserNames_AsNonMember_ReturnsNotFound()
+    {
+        int boardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Test Board", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_secondUserId));
+
+        var request = new ResolveUserNamesRequest { UserIds = [_userId] };
+        var response = await _client.PostAsJsonAsync($"/api/boards/{boardId}/members/resolve-names", request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResolveUserNames_ResolvesOwnerAsCommentAuthorAndActivityActor()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int boardId;
+        string commentAuthorId, activityActorId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Test Board", OwnerId = _userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+
+            var list = new List { BoardId = boardId, Name = "Test List", Position = 0 };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+
+            var card = new Card { ListId = list.Id, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+
+            // Owner never becomes a BoardMember row (see BoardService.AddBoardMemberAsync), so a
+            // comment/activity authored by the owner is exactly the case that used to fall back
+            // to a raw user id in CardDetail.razor's activity log.
+            var comment = new Comment { CardId = card.Id, AuthorId = _userId, Text = "owner comment" };
+            dbContext.Comments.Add(comment);
+            var activity = new CardActivity { CardId = card.Id, UserId = _userId, ActivityType = ActivityType.CardCreated, Metadata = "{}" };
+            dbContext.CardActivities.Add(activity);
+            await dbContext.SaveChangesAsync();
+
+            commentAuthorId = comment.AuthorId;
+            activityActorId = activity.UserId;
+        }
+
+        // Mirrors exactly what CardDetail.razor's CollectUnresolvedUserIds gathers: the comment
+        // author id and the activity actor id.
+        var request = new ResolveUserNamesRequest { UserIds = [commentAuthorId, activityActorId] };
+        var response = await _client.PostAsJsonAsync($"/api/boards/{boardId}/members/resolve-names", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resolved = await response.Content.ReadFromJsonAsync<List<ResolvedUserName>>();
+        Assert.NotNull(resolved);
+        var ownerEntry = Assert.Single(resolved!);
+        Assert.Equal(_userId, ownerEntry.Id);
+        Assert.Equal($"user_{_userId}", ownerEntry.DisplayName);
+        Assert.NotEqual(_userId, ownerEntry.DisplayName);
+    }
+
     private string CreateToken(string userId)
     {
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId) };

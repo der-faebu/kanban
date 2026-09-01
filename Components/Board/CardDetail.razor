@@ -626,6 +626,21 @@
             {
                 authorNames[assignee.Id] = assignee.UserName ?? assignee.Email ?? assignee.Id;
             }
+
+            // boardMembers/cardAssignees miss anyone who acted but isn't in either list right
+            // now: the board owner (never a BoardMember row, see BoardService.AddBoardMemberAsync)
+            // and former members who were removed after commenting/attaching/etc. Resolve those
+            // too so the activity log/comments/attachments never fall back to a raw user id.
+            var unresolvedUserIds = CollectUnresolvedUserIds();
+
+            if (unresolvedUserIds.Count > 0)
+            {
+                var resolved = await BoardService.GetUsersByIdsAsync(BoardId, userId, unresolvedUserIds);
+                foreach (var user in resolved)
+                {
+                    authorNames[user.Id] = user.DisplayName;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -633,6 +648,15 @@
             found = false;
         }
     }
+
+    private List<string> CollectUnresolvedUserIds() =>
+        activityLog.Select(a => a.UserId)
+            .Concat(activityLog.SelectMany(GetMetadataUserIds))
+            .Concat(comments.Select(c => c.AuthorId))
+            .Concat(attachments.Select(a => a.UploadedByUserId))
+            .Where(id => !string.IsNullOrEmpty(id) && !authorNames.ContainsKey(id))
+            .Distinct()
+            .ToList();
 
     private async Task InitializeSignalR()
     {
@@ -993,20 +1017,33 @@
         }
     }
 
+    private static JsonElement ParseMetadata(string? metadataJson)
+    {
+        if (string.IsNullOrEmpty(metadataJson))
+            return default;
+
+        try { return JsonDocument.Parse(metadataJson).RootElement; }
+        catch (JsonException) { return default; /* malformed/legacy metadata; render without details */ }
+    }
+
+    private static string GetMetadataValue(JsonElement meta, string key) =>
+        meta.ValueKind == JsonValueKind.Object && meta.TryGetProperty(key, out var v) ? v.ToString() : string.Empty;
+
+    private static IEnumerable<string> GetMetadataUserIds(CardActivity entry)
+    {
+        if (entry.ActivityType != ActivityType.AssigneeAdded && entry.ActivityType != ActivityType.AssigneeRemoved)
+            yield break;
+
+        var id = GetMetadataValue(ParseMetadata(entry.Metadata), "assigneeUserId");
+        if (!string.IsNullOrEmpty(id))
+            yield return id;
+    }
+
     private string FormatActivity(CardActivity entry)
     {
         var actor = AuthorName(entry.UserId);
-        JsonElement meta = default;
-        if (!string.IsNullOrEmpty(entry.Metadata))
-        {
-            try { meta = JsonDocument.Parse(entry.Metadata).RootElement; }
-            catch (JsonException) { /* malformed/legacy metadata; render without details */ }
-        }
-
-        string Get(string key) =>
-            meta.ValueKind == JsonValueKind.Object && meta.TryGetProperty(key, out var v)
-                ? v.ToString()
-                : string.Empty;
+        var meta = ParseMetadata(entry.Metadata);
+        string Get(string key) => GetMetadataValue(meta, key);
 
         return entry.ActivityType switch
         {

@@ -14,6 +14,7 @@ public interface IBoardService
     Task RemoveBoardMemberAsync(int boardId, string userId, string memberId);
     Task ChangeBoardMemberRoleAsync(int boardId, string userId, string memberId, BoardMemberRole role);
     Task<List<BoardMember>> GetBoardMembersAsync(int boardId, string userId);
+    Task<List<ResolvedUserName>> GetUsersByIdsAsync(int boardId, string userId, IEnumerable<string> targetUserIds);
     Task<bool> IsUserBoardOwnerAsync(int boardId, string userId);
     Task<bool> IsUserBoardMemberAsync(int boardId, string userId);
 }
@@ -164,6 +165,34 @@ public class BoardService(IDbContextFactory<ApplicationDbContext> contextFactory
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
+        await EnsureCallerIsBoardMemberAsync(context, boardId, userId);
+
+        return await context.BoardMembers
+            .Where(m => m.BoardId == boardId)
+            .Include(m => m.User)
+            .ToListAsync();
+    }
+
+    // Resolves display names for any user id associated with a board's activity — the current
+    // owner and members, but also the owner (who is deliberately never a BoardMember row, see
+    // AddBoardMemberAsync) and former members whose BoardMember row has since been removed.
+    // Callers (e.g. a card's activity log/comments/attachments) need names for whoever actually
+    // acted, not just whoever is still a member today.
+    public async Task<List<ResolvedUserName>> GetUsersByIdsAsync(int boardId, string userId, IEnumerable<string> targetUserIds)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        await EnsureCallerIsBoardMemberAsync(context, boardId, userId);
+
+        var ids = targetUserIds.Distinct().ToList();
+        return await context.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new ResolvedUserName(u.Id, u.UserName ?? u.Email ?? u.Id))
+            .ToListAsync();
+    }
+
+    private static async Task EnsureCallerIsBoardMemberAsync(ApplicationDbContext context, int boardId, string userId)
+    {
         var board = await context.Boards.FirstOrDefaultAsync(b => b.Id == boardId && !b.IsDeleted);
 
         if (board == null)
@@ -171,11 +200,6 @@ public class BoardService(IDbContextFactory<ApplicationDbContext> contextFactory
 
         if (board.OwnerId != userId && !await context.BoardMembers.AnyAsync(m => m.BoardId == boardId && m.UserId == userId))
             throw new InvalidOperationException("User is not a board member");
-
-        return await context.BoardMembers
-            .Where(m => m.BoardId == boardId)
-            .Include(m => m.User)
-            .ToListAsync();
     }
 
     public async Task<bool> IsUserBoardOwnerAsync(int boardId, string userId)

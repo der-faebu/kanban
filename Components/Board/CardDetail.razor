@@ -35,6 +35,22 @@
         {
             <div class="card-dialog-body">
                 <div class="prop-row">
+                    <MudSelect T="CardState" Value="state" ValueChanged="HandleStateChanged" Placeholder="State"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control">
+                        @foreach (var s in Enum.GetValues<CardState>())
+                        {
+                            <MudSelectItem T="CardState" Value="s">@CardStateStyles.Label(s)</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudSelect T="CardType?" Value="type" ValueChanged="HandleTypeChanged" Placeholder="Type"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
+                        @foreach (var t in Enum.GetValues<CardType>())
+                        {
+                            <MudSelectItem T="CardType?" Value="t">@CardTypeStyles.Label(t)</MudSelectItem>
+                        }
+                    </MudSelect>
+
                     <MudSelect T="CardPriority?" Value="priority" ValueChanged="HandlePriorityChanged" Placeholder="Priority"
                                Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
                         @foreach (var level in Enum.GetValues<CardPriority>())
@@ -539,6 +555,8 @@
     private bool editingDescription = false;
     private DateTime? dueDate;
     private CardPriority? priority;
+    private CardState state;
+    private CardType? type;
 
     private List<Label> cardLabels = [];
     private List<Label> boardLabels = [];
@@ -608,6 +626,8 @@
             description = card.Description;
             dueDate = card.DueDate;
             priority = card.Priority;
+            state = card.State;
+            type = card.Type;
 
             cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
             boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
@@ -667,6 +687,8 @@
 
         hubConnection.On<JsonElement>("CardUpdated", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardPriorityChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardStateChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardTypeChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
@@ -751,6 +773,38 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error updating card priority: {ex.Message}");
+        }
+    }
+
+    private async Task HandleStateChanged(CardState newState)
+    {
+        state = newState;
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetCardStateAsync(CardId, userId, newState);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating card state: {ex.Message}");
+        }
+    }
+
+    private async Task HandleTypeChanged(CardType? newType)
+    {
+        type = newType;
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetCardTypeAsync(CardId, userId, newType);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating card type: {ex.Message}");
         }
     }
 
@@ -1065,6 +1119,7 @@
             ActivityType.AttachmentAdded => $"{actor} attached a file",
             ActivityType.AttachmentDeleted => $"{actor} removed an attachment",
             ActivityType.PriorityChanged => string.IsNullOrEmpty(Get("priority")) ? $"{actor} cleared the priority" : $"{actor} set priority to {Get("priority")}",
+            ActivityType.StateChanged => $"{actor} set state to {Get("state")}",
             _ => $"{actor} made a change"
         };
     }

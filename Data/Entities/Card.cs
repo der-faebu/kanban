@@ -10,6 +10,8 @@ public class Card
     public int Position { get; set; }
     public DateTime? DueDate { get; set; }
     public CardPriority? Priority { get; set; }
+    public CardState State { get; set; } = CardState.NotStarted;
+    public CardType? Type { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

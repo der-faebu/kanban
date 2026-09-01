@@ -26,6 +26,14 @@ public static class CardEndpoints
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        cardGroup.MapPut("/{cardId}/state", SetCardState)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPut("/{cardId}/type", SetCardType)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         cardGroup.MapPost("/{cardId}/move", MoveCard)
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
@@ -126,6 +134,40 @@ public static class CardEndpoints
         try
         {
             await cardService.UpdateCardAsync(cardId, userId, request.Title, request.Description ?? "", request.DueDate);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> SetCardState(HttpContext context, ICardService cardService, int listId, int cardId, SetCardStateRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.SetCardStateAsync(cardId, userId, request.State);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> SetCardType(HttpContext context, ICardService cardService, int listId, int cardId, SetCardTypeRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.SetCardTypeAsync(cardId, userId, request.Type);
             return Results.Ok();
         }
         catch (InvalidOperationException ex)

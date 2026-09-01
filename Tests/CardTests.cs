@@ -115,6 +115,163 @@ public class CardTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateCard_DefaultsToNotStartedState()
+    {
+        var request = new CreateCardRequest { Title = "Test Card" };
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards", request);
+
+        var card = await response.Content.ReadFromJsonAsync<Card>();
+        Assert.NotNull(card);
+        Assert.Equal(CardState.NotStarted, card!.State);
+    }
+
+    [Fact]
+    public async Task SetCardState_ReturnsOk_AndPersistsState()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardStateRequest { State = CardState.InProgress };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/state", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Equal(CardState.InProgress, card2!.State);
+    }
+
+    [Fact]
+    public async Task SetCardState_ToDone_ReturnsOk()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardStateRequest { State = CardState.Done };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/state", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Equal(CardState.Done, card2!.State);
+    }
+
+    [Fact]
+    public async Task SetCardState_AsNonBoardMember_IsRejected()
+    {
+        var otherUserId = await CreateOtherUserAsync();
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(otherUserId));
+
+        var request = new SetCardStateRequest { State = CardState.InProgress };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/state", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetCardType_ReturnsOk_AndPersistsType()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardTypeRequest { Type = CardType.Bug };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/type", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Equal(CardType.Bug, card2!.Type);
+    }
+
+    [Fact]
+    public async Task SetCardType_Clear_SetsTypeToNull()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, Type = CardType.Feature };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardTypeRequest { Type = null };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/type", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Null(card2!.Type);
+    }
+
+    [Fact]
+    public async Task SetCardType_AsNonBoardMember_IsRejected()
+    {
+        var otherUserId = await CreateOtherUserAsync();
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(otherUserId));
+
+        var request = new SetCardTypeRequest { Type = CardType.Chore };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/type", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task MoveCard_ToAnotherList_ReturnsOk()
     {
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));

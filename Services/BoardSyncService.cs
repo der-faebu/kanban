@@ -11,6 +11,8 @@ public interface IBoardSyncService
     Task BroadcastCardMovedAsync(int boardId, int cardId, int sourceListId, int targetListId, int position);
     Task BroadcastCardDeletedAsync(int boardId, int cardId);
     Task BroadcastCardPriorityChangedAsync(int boardId, int cardId, CardPriority? priority);
+    Task BroadcastCardStateChangedAsync(int boardId, int cardId, CardState state);
+    Task BroadcastCardTypeChangedAsync(int boardId, int cardId, CardType? type);
     Task BroadcastListCreatedAsync(int boardId, int listId, string name);
     Task BroadcastListUpdatedAsync(int boardId, int listId, string name);
     Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions);
@@ -63,6 +65,18 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("CardPriorityChanged", new { cardId, priority, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardStateChangedAsync(int boardId, int cardId, CardState state)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardStateChanged", new { cardId, state, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardTypeChangedAsync(int boardId, int cardId, CardType? type)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardTypeChanged", new { cardId, type, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastListCreatedAsync(int boardId, int listId, string name)

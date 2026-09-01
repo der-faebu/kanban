@@ -14,46 +14,48 @@
             </div>
         }
         <span class="card-id">@CardVisualStyles.IdCode(BoardName, Card.Id)</span>
-        <h3>@Card.Title</h3>
+        <h3 class="@(Card.State == CardState.Done ? "done" : "")">@Card.Title</h3>
         @if (!string.IsNullOrEmpty(Card.Description))
         {
             <p>@Card.Description</p>
         }
-        @if (Card.Priority.HasValue || Card.DueDate.HasValue || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0 || attachmentCount > 0)
-        {
-            <div class="badge-row">
-                @if (Card.Priority.HasValue)
-                {
-                    <span class="priority-badge" style="@PriorityStyle(Card.Priority.Value)">@CardPriorityStyles.Label(Card.Priority.Value)</span>
-                }
-                @if (Card.DueDate.HasValue)
-                {
-                    <span class="meta-pill" title="Due date">📅 @Card.DueDate.Value.ToShortDateString()</span>
-                }
-                @if (checklistTotal > 0)
-                {
-                    <span class="meta-pill" title="Checklist progress">☑ @checklistDone/@checklistTotal</span>
-                }
-                @if (commentCount > 0)
-                {
-                    <span class="meta-pill" title="@commentCount comment(s)">💬 @commentCount</span>
-                }
-                @if (attachmentCount > 0)
-                {
-                    <span class="meta-pill" title="@attachmentCount attachment(s)">📎 @attachmentCount</span>
-                }
-                @if (assignees.Count > 0)
-                {
-                    <div class="avatar-row">
-                        @foreach (var assignee in assignees)
-                        {
-                            var (bg, fg) = CardVisualStyles.AvatarColor(assignee.UserName ?? assignee.Email ?? assignee.Id);
-                            <span class="assignee-badge" style="background-color:@bg;color:@fg" title="@(assignee.UserName ?? assignee.Email)">@Initials(assignee)</span>
-                        }
-                    </div>
-                }
-            </div>
-        }
+        <div class="badge-row">
+            <span class="state-badge" style="@StateStyle(Card.State)">@CardStateStyles.Label(Card.State)</span>
+            @if (Card.Type.HasValue)
+            {
+                <span class="type-badge">@CardTypeStyles.Label(Card.Type.Value)</span>
+            }
+            @if (Card.Priority.HasValue)
+            {
+                <span class="priority-badge" style="@PriorityStyle(Card.Priority.Value)">@CardPriorityStyles.Label(Card.Priority.Value)</span>
+            }
+            @if (Card.DueDate.HasValue)
+            {
+                <span class="meta-pill" title="Due date" style="@DueDateStyle(Card.DueDate.Value, Card.State)">📅 @Card.DueDate.Value.ToShortDateString()</span>
+            }
+            @if (checklistTotal > 0)
+            {
+                <span class="meta-pill" title="Checklist progress">☑ @checklistDone/@checklistTotal</span>
+            }
+            @if (commentCount > 0)
+            {
+                <span class="meta-pill" title="@commentCount comment(s)">💬 @commentCount</span>
+            }
+            @if (attachmentCount > 0)
+            {
+                <span class="meta-pill" title="@attachmentCount attachment(s)">📎 @attachmentCount</span>
+            }
+            @if (assignees.Count > 0)
+            {
+                <div class="avatar-row">
+                    @foreach (var assignee in assignees)
+                    {
+                        var (bg, fg) = CardVisualStyles.AvatarColor(assignee.UserName ?? assignee.Email ?? assignee.Id);
+                        <span class="assignee-badge" style="background-color:@bg;color:@fg" title="@(assignee.UserName ?? assignee.Email)">@Initials(assignee)</span>
+                    }
+                </div>
+            }
+        </div>
     </div>
     <div @onclick:stopPropagation="true">
         <MudIconButton Icon="@Icons.Material.Filled.Close"
@@ -104,6 +106,10 @@
         font-weight: 600;
         color: var(--knb-text-primary);
         word-break: break-word;
+    }
+
+    .card h3.done {
+        text-decoration: line-through;
     }
 
     .card p {
@@ -183,7 +189,9 @@
         font-weight: 700;
     }
 
-    .priority-badge {
+    .priority-badge,
+    .state-badge,
+    .type-badge {
         display: inline-flex;
         align-items: center;
         font-size: 10px;
@@ -192,6 +200,11 @@
         letter-spacing: 0.02em;
         padding: 1px 6px;
         border-radius: var(--knb-radius-full);
+    }
+
+    .type-badge {
+        color: var(--knb-text-secondary);
+        background: var(--knb-bg-surface-3);
     }
 </style>
 
@@ -274,6 +287,18 @@
     private static string PriorityStyle(CardPriority priority)
     {
         var (fg, bg) = CardPriorityStyles.Colors(priority);
+        return $"color:{fg};background-color:{bg}";
+    }
+
+    private static string StateStyle(CardState state)
+    {
+        var (fg, bg) = CardStateStyles.Colors(state);
+        return $"color:{fg};background-color:{bg}";
+    }
+
+    private static string DueDateStyle(DateTime dueDate, CardState state)
+    {
+        var (fg, bg) = CardDueDateStyles.Colors(dueDate, state);
         return $"color:{fg};background-color:{bg}";
     }
 

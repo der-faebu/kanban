@@ -135,6 +135,21 @@ public class ActivityLogTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SettingCardState_ProducesStateChangedEntry()
+    {
+        AuthenticateAs(_userId);
+
+        await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{_cardId}/state", new SetCardStateRequest { State = CardState.InProgress });
+
+        var response = await _client.GetAsync($"/api/lists/{_listId}/cards/{_cardId}/activity");
+        var activity = await response.Content.ReadFromJsonAsync<List<CardActivity>>();
+
+        var entry = Assert.Single(activity!, a => a.ActivityType == ActivityType.StateChanged);
+        Assert.Contains("\"state\":\"InProgress\"", entry.Metadata);
+        Assert.Equal(_userId, entry.UserId);
+    }
+
+    [Fact]
     public async Task AddingLabel_ProducesLabelAddedEntry()
     {
         AuthenticateAs(_userId);

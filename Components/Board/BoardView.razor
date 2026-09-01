@@ -41,6 +41,13 @@ else
     <p>Board not found.</p>
 }
 
+<div class="toast-container">
+    @foreach (var toast in toasts)
+    {
+        <div class="toast" @key="toast.Id">@toast.Text</div>
+    }
+</div>
+
 <style>
     .board-container {
         padding: 20px;
@@ -68,6 +75,31 @@ else
         overflow-x: auto;
         padding: 10px 0;
     }
+
+    .toast-container {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 1000;
+    }
+
+    .toast {
+        background: #333;
+        color: white;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        animation: toast-in 0.2s ease-out;
+    }
+
+    @@keyframes toast-in {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 
 @code {
@@ -91,6 +123,26 @@ else
     private bool loading = true;
     private string? userId;
     private HubConnection? hubConnection;
+    private readonly System.Collections.Generic.List<ToastMessage> toasts = [];
+
+    private record ToastMessage(string Id, string Text);
+
+    private async Task ShowToast(string text)
+    {
+        var toast = new ToastMessage(Guid.NewGuid().ToString(), text);
+
+        await InvokeAsync(() =>
+        {
+            toasts.Add(toast);
+            StateHasChanged();
+        });
+
+        _ = Task.Delay(4000).ContinueWith(_ => InvokeAsync(() =>
+        {
+            toasts.Remove(toast);
+            StateHasChanged();
+        }));
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -180,59 +232,22 @@ else
         StateHasChanged();
     }
 
-    private async Task OnCardCreated(dynamic data)
+    private async Task RefreshAndNotify(string message)
     {
         await LoadBoardData();
         StateHasChanged();
+        await ShowToast(message);
     }
 
-    private async Task OnCardUpdated(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnCardMoved(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnCardDeleted(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnListCreated(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnListUpdated(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnListReordered(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnListDeleted(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
-
-    private async Task OnCardBadgesChanged(dynamic data)
-    {
-        await LoadBoardData();
-        StateHasChanged();
-    }
+    private Task OnCardCreated(dynamic data) => RefreshAndNotify("A card was added");
+    private Task OnCardUpdated(dynamic data) => RefreshAndNotify("A card was updated");
+    private Task OnCardMoved(dynamic data) => RefreshAndNotify("A card was moved");
+    private Task OnCardDeleted(dynamic data) => RefreshAndNotify("A card was removed");
+    private Task OnListCreated(dynamic data) => RefreshAndNotify("A list was added");
+    private Task OnListUpdated(dynamic data) => RefreshAndNotify("A list was renamed");
+    private Task OnListReordered(dynamic data) => RefreshAndNotify("Lists were reordered");
+    private Task OnListDeleted(dynamic data) => RefreshAndNotify("A list was removed");
+    private Task OnCardBadgesChanged(dynamic data) => RefreshAndNotify("A card was updated");
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {

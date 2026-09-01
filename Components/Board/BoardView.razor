@@ -148,6 +148,8 @@ else
         hubConnection.On<dynamic>("ChecklistItemUpdated", async (data) => await OnCardBadgesChanged(data));
         hubConnection.On<dynamic>("ChecklistItemDeleted", async (data) => await OnCardBadgesChanged(data));
         hubConnection.On<dynamic>("ChecklistReordered", async (data) => await OnCardBadgesChanged(data));
+        hubConnection.On<dynamic>("AttachmentAdded", async (data) => await OnCardBadgesChanged(data));
+        hubConnection.On<dynamic>("AttachmentDeleted", async (data) => await OnCardBadgesChanged(data));
 
         try
         {

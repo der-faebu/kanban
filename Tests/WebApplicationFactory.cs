@@ -13,6 +13,8 @@ public class KanbanWebApplicationFactory : WebApplicationFactory<Program>
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder().Build();
     private bool _containerStarted = false;
 
+    public string AttachmentsStorageRoot { get; } = Path.Combine(Path.GetTempPath(), $"kanban-test-uploads-{Guid.NewGuid()}");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, configBuilder) =>
@@ -22,6 +24,8 @@ public class KanbanWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:Issuer"] = "test",
                 ["Jwt:Audience"] = "test",
                 ["Jwt:Key"] = "test-secret-key-long-enough-for-hs256",
+                ["Attachments:StorageRoot"] = AttachmentsStorageRoot,
+                ["Attachments:MaxFileSizeMb"] = "1",
             });
         });
 
@@ -70,6 +74,10 @@ public class KanbanWebApplicationFactory : WebApplicationFactory<Program>
         if (_containerStarted)
         {
             await _container.StopAsync();
+        }
+        if (Directory.Exists(AttachmentsStorageRoot))
+        {
+            Directory.Delete(AttachmentsStorageRoot, recursive: true);
         }
         await base.DisposeAsync();
     }

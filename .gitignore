@@ -16,3 +16,6 @@ Thumbs.db
 
 ## Logs
 *.log
+
+## Local attachment storage (dev default; production points at a mounted volume)
+/uploads/

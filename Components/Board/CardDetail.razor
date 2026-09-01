@@ -176,6 +176,26 @@ else
             <textarea @bind="newCommentText" placeholder="Write a comment..." rows="2"></textarea>
             <button type="button" class="btn btn-sm btn-primary" @onclick="PostComment" disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</button>
         </div>
+
+        <div class="field">
+            <label>Attachments (@attachments.Count)</label>
+            <div class="attachment-list">
+                @foreach (var attachment in attachments)
+                {
+                    <div class="attachment-row">
+                        <a href="@DownloadUrl(attachment.Id)" target="_blank" class="attachment-name">@attachment.FileName</a>
+                        <span class="attachment-meta">@FormatSize(attachment.SizeBytes) &middot; @AuthorName(attachment.UploadedByUserId) &middot; @attachment.CreatedAt.ToLocalTime().ToString("g")</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachment(attachment.Id)">Delete</button>
+                    </div>
+                }
+            </div>
+
+            <InputFile OnChange="HandleFileSelected" />
+            @if (!string.IsNullOrEmpty(uploadError))
+            {
+                <p class="upload-error">@uploadError</p>
+            }
+        </div>
     </div>
 }
 
@@ -349,6 +369,38 @@ else
         text-decoration: line-through;
         color: #999;
     }
+
+    .attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .attachment-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    .attachment-name {
+        font-weight: 600;
+    }
+
+    .attachment-meta {
+        flex: 1;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .upload-error {
+        color: #dc3545;
+        font-size: 13px;
+        margin-top: 4px;
+    }
 </style>
 
 @code {
@@ -372,6 +424,12 @@ else
 
     [Inject]
     private IChecklistService ChecklistService { get; set; } = null!;
+
+    [Inject]
+    private IAttachmentService AttachmentService { get; set; } = null!;
+
+    [Inject]
+    private Microsoft.Extensions.Options.IOptions<AttachmentsOptions> AttachmentSettings { get; set; } = null!;
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
@@ -411,6 +469,10 @@ else
     private string editingChecklistItemText = string.Empty;
     private int? draggedChecklistItemId;
 
+    private int listId;
+    private List<Attachment> attachments = [];
+    private string? uploadError;
+
     protected override async Task OnInitializedAsync()
     {
         loading = true;
@@ -447,6 +509,7 @@ else
             }
 
             found = true;
+            listId = card.List.Id;
             title = card.Title;
             description = card.Description;
             dueDate = card.DueDate;
@@ -459,6 +522,7 @@ else
             isOwner = await BoardService.IsUserBoardOwnerAsync(BoardId, userId);
             comments = await CommentService.GetCardCommentsAsync(CardId, userId);
             checklistItems = await ChecklistService.GetItemsAsync(CardId, userId);
+            attachments = await AttachmentService.GetAttachmentsAsync(CardId, userId);
 
             authorNames = boardMembers
                 .Where(m => m.User != null)
@@ -495,6 +559,8 @@ else
         hubConnection.On<JsonElement>("ChecklistItemUpdated", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("ChecklistItemDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("ChecklistReordered", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("AttachmentAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("AttachmentDeleted", async data => await RefreshIfForThisCard(data));
         // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
         hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
         hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
@@ -797,6 +863,49 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting comment: {ex.Message}");
+        }
+    }
+
+    private string DownloadUrl(int attachmentId) => $"/api/lists/{listId}/cards/{CardId}/attachments/{attachmentId}/download";
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        uploadError = null;
+
+        try
+        {
+            var file = e.File;
+            var maxBytes = AttachmentSettings.Value.MaxFileSizeMb * 1024L * 1024L;
+            await using var stream = file.OpenReadStream(maxBytes);
+            await AttachmentService.UploadAttachmentAsync(CardId, userId, stream, file.Name, file.ContentType, file.Size);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            uploadError = ex.Message;
+            Console.WriteLine($"Error uploading attachment: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteAttachment(int attachmentId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await AttachmentService.DeleteAttachmentAsync(attachmentId, userId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting attachment: {ex.Message}");
         }
     }
 

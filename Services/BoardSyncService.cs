@@ -26,6 +26,8 @@ public interface IBoardSyncService
     Task BroadcastChecklistItemUpdatedAsync(int boardId, int cardId, int itemId, string text, bool isDone);
     Task BroadcastChecklistItemDeletedAsync(int boardId, int cardId, int itemId);
     Task BroadcastChecklistReorderedAsync(int boardId, int cardId, List<(int ItemId, int Position)> positions);
+    Task BroadcastAttachmentAddedAsync(int boardId, int cardId, int attachmentId, string fileName, string uploadedByUserId);
+    Task BroadcastAttachmentDeletedAsync(int boardId, int cardId, int attachmentId);
 }
 
 public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSyncService
@@ -158,5 +160,17 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
         var payload = positions.Select(p => new { itemId = p.ItemId, position = p.Position });
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("ChecklistReordered", new { cardId, positions = payload, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastAttachmentAddedAsync(int boardId, int cardId, int attachmentId, string fileName, string uploadedByUserId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("AttachmentAdded", new { cardId, attachmentId, fileName, uploadedByUserId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastAttachmentDeletedAsync(int boardId, int cardId, int attachmentId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("AttachmentDeleted", new { cardId, attachmentId, timestamp = DateTime.UtcNow });
     }
 }

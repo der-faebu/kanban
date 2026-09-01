@@ -19,3 +19,8 @@ services:
 
 volumes:
   postgres_data:
+  # Reserved for card attachments (Attachments:StorageRoot). The app itself isn't
+  # containerized yet (it runs via `dotnet run` against this compose file's postgres
+  # service) -- once it is, mount this as `uploads:/app/uploads` on that service and
+  # point Attachments:StorageRoot at /app/uploads so attachments survive restarts/redeploys.
+  uploads:

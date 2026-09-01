@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -117,5 +118,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<ChecklistItem>()
             .HasIndex(i => new { i.CardId, i.Position });
+
+        builder.Entity<Attachment>()
+            .HasOne(a => a.Card)
+            .WithMany()
+            .HasForeignKey(a => a.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Attachment>()
+            .HasOne(a => a.UploadedBy)
+            .WithMany()
+            .HasForeignKey(a => a.UploadedByUserId)
+            .IsRequired();
     }
 }

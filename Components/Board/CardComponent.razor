@@ -13,7 +13,7 @@
         {
             <small class="due-date">Due: @Card.DueDate.Value.ToShortDateString()</small>
         }
-        @if (labels.Count > 0 || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0)
+        @if (labels.Count > 0 || assignees.Count > 0 || commentCount > 0 || checklistTotal > 0 || attachmentCount > 0)
         {
             <div class="badge-row">
                 @foreach (var label in labels)
@@ -31,6 +31,10 @@
                 @if (checklistTotal > 0)
                 {
                     <span class="comment-count-badge" title="Checklist progress">☑ @checklistDone/@checklistTotal</span>
+                }
+                @if (attachmentCount > 0)
+                {
+                    <span class="comment-count-badge" title="@attachmentCount attachment(s)">📎 @attachmentCount</span>
                 }
             </div>
         }
@@ -157,6 +161,9 @@
     private IChecklistService ChecklistService { get; set; } = null!;
 
     [Inject]
+    private IAttachmentService AttachmentService { get; set; } = null!;
+
+    [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
     [Inject]
@@ -171,6 +178,7 @@
     private int commentCount;
     private int checklistDone;
     private int checklistTotal;
+    private int attachmentCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -194,6 +202,7 @@
             assignees = await CardService.GetCardAssigneesAsync(Card.Id, userId);
             commentCount = await CommentService.GetCardCommentCountAsync(Card.Id, userId);
             (checklistDone, checklistTotal) = await ChecklistService.GetChecklistProgressAsync(Card.Id, userId);
+            attachmentCount = await AttachmentService.GetAttachmentCountAsync(Card.Id, userId);
         }
         catch (Exception ex)
         {

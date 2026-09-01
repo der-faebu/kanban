@@ -122,3 +122,190 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/*
+  Auth & account pages (Kanso retokening, issue #26). ASP.NET Core Identity's
+  scaffolded EditForm/InputText/ValidationMessage markup stays intact (it's
+  load-bearing for model binding + validation) — everything below is CSS-only
+  retokening of the Bootstrap classes that scaffolding renders with, plus a
+  small set of semantic wrapper classes (.auth-*, .manage-*) applied in the
+  markup so the pages read as Kanso-style cards instead of bare Bootstrap rows.
+*/
+
+.alert {
+    border-radius: var(--knb-radius-md);
+    border: 1px solid transparent;
+}
+
+.alert-primary, .alert-info {
+    background-color: var(--knb-accent-subtle);
+    border-color: var(--knb-accent-border);
+    color: var(--knb-accent-active);
+}
+
+.alert-success {
+    background-color: var(--knb-success-subtle);
+    border-color: var(--knb-success);
+    color: var(--knb-success);
+}
+
+.alert-warning {
+    background-color: var(--knb-warning-subtle);
+    border-color: var(--knb-warning);
+    color: var(--knb-warning);
+}
+
+.alert-danger {
+    background-color: var(--knb-danger-subtle);
+    border-color: var(--knb-danger);
+    color: var(--knb-danger);
+}
+
+.btn-danger {
+    color: var(--knb-text-on-accent);
+    background-color: var(--knb-danger);
+    border-color: var(--knb-danger);
+    border-radius: var(--knb-radius-md);
+}
+
+    .btn-danger:hover, .btn-danger:focus {
+        background-color: color-mix(in srgb, var(--knb-danger) 85%, black);
+        border-color: color-mix(in srgb, var(--knb-danger) 85%, black);
+    }
+
+.text-info {
+    color: var(--knb-accent) !important;
+}
+
+.nav-pills .nav-link {
+    color: var(--knb-text-secondary);
+    border-radius: var(--knb-radius-md);
+}
+
+    .nav-pills .nav-link.active {
+        background-color: var(--knb-accent-subtle);
+        color: var(--knb-accent);
+        font-weight: 600;
+    }
+
+/* Login/Register/2FA/recovery/external-login/confirmation pages: centered card layout */
+.auth-shell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--knb-space-6);
+    padding: var(--knb-space-6) 0 var(--knb-space-8);
+}
+
+.auth-panel {
+    width: 100%;
+    max-width: 26rem;
+    background-color: var(--knb-bg-surface);
+    border: 1px solid var(--knb-border);
+    border-radius: var(--knb-radius-lg);
+    box-shadow: var(--knb-shadow-sm);
+    padding: var(--knb-space-8);
+}
+
+.auth-panel h1 {
+    font-size: var(--knb-text-2xl);
+    font-weight: 600;
+    color: var(--knb-text-primary);
+    margin: 0 0 var(--knb-space-1);
+}
+
+.auth-subtitle {
+    font-size: var(--knb-text-sm);
+    color: var(--knb-text-secondary);
+    margin: 0 0 var(--knb-space-6);
+}
+
+.auth-panel h3 {
+    font-size: var(--knb-text-lg);
+    font-weight: 600;
+    color: var(--knb-text-primary);
+    margin: 0 0 var(--knb-space-4);
+}
+
+.auth-field {
+    margin-bottom: var(--knb-space-4);
+}
+
+    .auth-field label {
+        display: block;
+        font-size: var(--knb-text-sm);
+        color: var(--knb-text-secondary);
+        margin-bottom: var(--knb-space-1);
+    }
+
+.auth-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--knb-space-2);
+    font-size: var(--knb-text-sm);
+    color: var(--knb-text-secondary);
+    margin-bottom: var(--knb-space-4);
+}
+
+.auth-links {
+    margin-top: var(--knb-space-6);
+    padding-top: var(--knb-space-6);
+    border-top: 1px solid var(--knb-border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: var(--knb-space-2);
+    font-size: var(--knb-text-sm);
+}
+
+/* Account settings ("Manage/*") pages */
+.manage-shell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--knb-space-8);
+    align-items: flex-start;
+}
+
+.manage-nav {
+    width: 100%;
+    max-width: 14rem;
+}
+
+.manage-content {
+    flex: 1 1 20rem;
+    max-width: 34rem;
+}
+
+.manage-title {
+    font-size: var(--knb-text-xl);
+    font-weight: 600;
+    color: var(--knb-text-primary);
+    margin: 0 0 var(--knb-space-4);
+}
+
+kbd {
+    font-family: var(--knb-font-mono);
+    background-color: var(--knb-bg-surface-3);
+    border: 1px solid var(--knb-border);
+    border-radius: var(--knb-radius-sm);
+    padding: 0.1em 0.4em;
+    color: var(--knb-text-primary);
+    box-shadow: none;
+}
+
+.recovery-code {
+    display: inline-block;
+    font-family: var(--knb-font-mono);
+    background-color: var(--knb-bg-surface-2);
+    border: 1px solid var(--knb-border);
+    border-radius: var(--knb-radius-sm);
+    padding: var(--knb-space-1) var(--knb-space-2);
+    color: var(--knb-text-primary);
+}
+
+.manage-title--page {
+    font-size: var(--knb-text-2xl);
+    font-weight: 600;
+    color: var(--knb-text-primary);
+    margin: 0 0 var(--knb-space-1);
+}

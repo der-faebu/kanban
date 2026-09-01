@@ -11,161 +11,152 @@
 
 @if (loading)
 {
-    <p>Loading card...</p>
+    <MudText Class="text-ink-muted m-6">Loading card...</MudText>
 }
 else if (!found)
 {
-    <div class="not-found">
-        <h3>Card not found</h3>
-        <p>This card doesn't exist, was deleted, or you don't have access to it.</p>
-        <a href="/board/@BoardId">Back to board</a>
+    <div class="mx-auto my-16 max-w-md text-center">
+        <MudText Typo="Typo.h5" Class="mb-2">Card not found</MudText>
+        <MudText Typo="Typo.body2" Class="text-ink-muted mb-4">This card doesn't exist, was deleted, or you don't have access to it.</MudText>
+        <MudLink Href="@($"/board/{BoardId}")">&larr; Back to board</MudLink>
     </div>
 }
 else
 {
-    <div class="card-detail">
-        <a href="/board/@BoardId" class="back-link">&larr; Back to board</a>
+    <MudPaper Outlined="true" Class="mx-auto my-6 max-w-3xl p-6 flex flex-col gap-6">
+        <MudLink Href="@($"/board/{BoardId}")" Class="block text-sm text-ink-muted" Underline="Underline.Hover">&larr; Back to board</MudLink>
 
-        <input class="title-input" @bind="title" @bind:event="oninput" @onblur="SaveCardFields" />
+        <MudTextField @bind-Value="title" Immediate="true" OnBlur="SaveCardFields" Variant="Variant.Text"
+                      Placeholder="Card title" Class="card-title-field" />
 
-        <div class="field">
-            <label>Description</label>
-            <textarea @bind="description" @bind:event="oninput" @onblur="SaveCardFields" rows="4"></textarea>
-        </div>
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Description</MudText>
+            <MudTextField @bind-Value="description" Immediate="true" OnBlur="SaveCardFields" Variant="Variant.Outlined"
+                          Placeholder="Add a more detailed description..." Lines="4" FullWidth="true" />
+        </MudPaper>
 
-        <div class="field">
-            <label>Due date</label>
-            <input type="date" value="@dueDateInput" @onchange="HandleDueDateChanged" />
-        </div>
+        <MudDatePicker Label="Due date" Date="dueDate" DateChanged="HandleDueDateChanged" Variant="Variant.Outlined" Clearable="true" Editable="true" />
 
-        <div class="field">
-            <label>Labels</label>
-            <div class="chip-row">
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Labels</MudText>
+            <div class="mb-2 flex flex-wrap gap-2">
                 @foreach (var label in cardLabels)
                 {
-                    <span class="chip" style="background-color:@label.Color">
-                        @label.Name
-                        <button class="chip-remove" @onclick="() => RemoveLabel(label.Id)" title="Remove label">&times;</button>
-                    </span>
+                    <MudChip T="string" Style="@($"background-color:{label.Color};color:#fff")" OnClose="() => RemoveLabel(label.Id)">@label.Name</MudChip>
                 }
             </div>
-
-            <div class="palette">
+            <div class="flex flex-wrap gap-2">
                 @foreach (var label in boardLabels.Where(l => !cardLabels.Any(cl => cl.Id == l.Id)))
                 {
-                    <button class="chip chip-add" style="background-color:@label.Color" @onclick="() => AddLabel(label.Id)">
-                        + @label.Name
-                    </button>
+                    <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{label.Color};color:{label.Color}")" OnClick="() => AddLabel(label.Id)">+ @label.Name</MudChip>
                 }
             </div>
 
             @if (isOwner)
             {
-                <div class="label-create">
-                    <input type="text" @bind="newLabelName" placeholder="New label name" />
-                    <div class="swatches">
+                <div class="mt-3 flex flex-col gap-2">
+                    <MudTextField @bind-Value="newLabelName" Placeholder="New label name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <div class="flex flex-wrap gap-2">
                         @foreach (var color in LabelSwatches.Colors)
                         {
                             <button type="button" class="swatch @(color == newLabelColor ? "selected" : "")"
                                     style="background-color:@color" @onclick="() => newLabelColor = color"></button>
                         }
                     </div>
-                    <button type="button" class="btn btn-sm btn-primary" @onclick="CreateLabel" disabled="@string.IsNullOrWhiteSpace(newLabelName)">Create label</button>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateLabel"
+                               Disabled="@string.IsNullOrWhiteSpace(newLabelName)" Class="self-start">Create label</MudButton>
                 </div>
 
-                <div class="label-delete">
+                <div class="mt-3 flex flex-wrap gap-2">
                     @foreach (var label in boardLabels)
                     {
-                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteLabel(label.Id)">Delete "@label.Name"</button>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteLabel(label.Id)">Delete "@label.Name"</MudButton>
                     }
                 </div>
             }
-        </div>
+        </MudPaper>
 
-        <div class="field">
-            <label>Assignees</label>
-            <div class="chip-row">
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Assignees</MudText>
+            <div class="mb-2 flex flex-wrap gap-2">
                 @foreach (var assignee in cardAssignees)
                 {
-                    <span class="chip assignee-chip">
-                        @(assignee.UserName ?? assignee.Email)
-                        <button class="chip-remove" @onclick="() => RemoveAssignee(assignee.Id)" title="Remove assignee">&times;</button>
-                    </span>
+                    <MudChip T="string" OnClose="() => RemoveAssignee(assignee.Id)">@(assignee.UserName ?? assignee.Email)</MudChip>
                 }
             </div>
-
-            <select @onchange="AddAssignee">
-                <option value="">Assign someone...</option>
+            <MudSelect T="string" Value="selectedAssigneeId" ValueChanged="AddAssignee" Label="Assign someone..." Variant="Variant.Outlined" Margin="Margin.Dense">
                 @foreach (var member in boardMembers.Where(m => !cardAssignees.Any(a => a.Id == m.UserId)))
                 {
-                    <option value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</option>
+                    <MudSelectItem T="string" Value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</MudSelectItem>
                 }
-            </select>
-        </div>
+            </MudSelect>
+        </MudPaper>
 
-        <div class="field">
-            <label>Checklist (@checklistDoneCount/@checklistItems.Count)</label>
-            <div class="checklist-list">
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Checklist (@checklistDoneCount/@checklistItems.Count)</MudText>
+            <div class="mb-2 flex flex-col gap-1">
                 @foreach (var item in checklistItems.OrderBy(i => i.Position))
                 {
-                    <div class="checklist-item" draggable="true"
+                    <div class="checklist-item" draggable="true" @key="item.Id"
                          @ondragstart="() => HandleChecklistDragStart(item)"
                          @ondragover="(DragEventArgs _) => { }" @ondragover:preventDefault="true"
                          @ondrop="() => HandleChecklistDrop(item)">
-                        <input type="checkbox" checked="@item.IsDone" @onchange="e => ToggleChecklistItem(item.Id, (bool)e.Value!)" />
+                        <MudCheckBox T="bool" Value="item.IsDone" ValueChanged="@(v => ToggleChecklistItem(item.Id, v))" Dense="true" />
 
                         @if (editingChecklistItemId == item.Id)
                         {
-                            <input type="text" @bind="editingChecklistItemText" @onblur="() => SaveChecklistItemEdit(item.Id)" />
+                            <MudTextField @bind-Value="editingChecklistItemText" OnBlur="() => SaveChecklistItemEdit(item.Id)" Variant="Variant.Text" Class="flex-1" AutoFocus="true" />
                         }
                         else
                         {
                             <span class="checklist-item-text @(item.IsDone ? "done" : "")" @onclick="() => StartChecklistItemEdit(item)">@item.Text</span>
                         }
 
-                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteChecklistItem(item.Id)">&times;</button>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteChecklistItem(item.Id)" />
                     </div>
                 }
             </div>
+            <div class="flex gap-2">
+                <MudTextField @bind-Value="newChecklistItemText" Immediate="true" Placeholder="Add checklist item" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" FullWidth="true" OnKeyDown="HandleChecklistItemKeyDown" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddChecklistItem" Disabled="@string.IsNullOrWhiteSpace(newChecklistItemText)">Add</MudButton>
+            </div>
+        </MudPaper>
 
-            <input type="text" @bind="newChecklistItemText" @bind:event="oninput" placeholder="Add checklist item" @onkeydown="HandleChecklistItemKeyDown" />
-            <button type="button" class="btn btn-sm btn-primary" @onclick="AddChecklistItem" disabled="@string.IsNullOrWhiteSpace(newChecklistItemText)">Add item</button>
-        </div>
-
-        <div class="field">
-            <label>Comments (@comments.Count)</label>
-            <div class="comment-list">
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Comments (@comments.Count)</MudText>
+            <div class="mb-3 flex flex-col gap-3">
                 @foreach (var comment in comments)
                 {
                     <div class="comment">
-                        <div class="comment-meta">
-                            <strong>@AuthorName(comment.AuthorId)</strong>
-                            <span class="comment-time">@comment.CreatedAt.ToLocalTime().ToString("g")</span>
+                        <div class="mb-1 flex items-baseline gap-2 text-xs text-ink-muted">
+                            <strong class="text-ink">@AuthorName(comment.AuthorId)</strong>
+                            <span>@comment.CreatedAt.ToLocalTime().ToString("g")</span>
                             @if (comment.UpdatedAt > comment.CreatedAt)
                             {
-                                <span class="comment-edited">(edited)</span>
+                                <span class="italic">(edited)</span>
                             }
                         </div>
 
                         @if (editingCommentId == comment.Id)
                         {
-                            <textarea @bind="editingCommentText" rows="2"></textarea>
-                            <div class="comment-actions">
-                                <button type="button" class="btn btn-sm btn-primary" @onclick="() => SaveCommentEdit(comment.Id)">Save</button>
-                                <button type="button" class="btn btn-sm btn-secondary" @onclick="CancelCommentEdit">Cancel</button>
+                            <MudTextField @bind-Value="editingCommentText" Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" />
+                            <div class="flex gap-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveCommentEdit(comment.Id)">Save</MudButton>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelCommentEdit">Cancel</MudButton>
                             </div>
                         }
                         else
                         {
                             <p class="comment-text">@comment.Text</p>
-                            <div class="comment-actions">
+                            <div class="flex gap-2">
                                 @if (comment.AuthorId == userId)
                                 {
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => StartCommentEdit(comment)">Edit</button>
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartCommentEdit(comment)">Edit</MudButton>
                                 }
                                 @if (comment.AuthorId == userId || isOwner)
                                 {
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteComment(comment.Id)">Delete</button>
+                                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteComment(comment.Id)">Delete</MudButton>
                                 }
                             </div>
                         }
@@ -173,122 +164,51 @@ else
                 }
             </div>
 
-            <textarea @bind="newCommentText" placeholder="Write a comment..." rows="2"></textarea>
-            <button type="button" class="btn btn-sm btn-primary" @onclick="PostComment" disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</button>
-        </div>
+            <MudTextField @bind-Value="newCommentText" Placeholder="Write a comment..." Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="PostComment" Disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</MudButton>
+        </MudPaper>
 
-        <div class="field">
-            <label>Attachments (@attachments.Count)</label>
-            <div class="attachment-list">
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Attachments (@attachments.Count)</MudText>
+            <div class="mb-2 flex flex-col gap-2">
                 @foreach (var attachment in attachments)
                 {
                     <div class="attachment-row">
-                        <a href="@DownloadUrl(attachment.Id)" target="_blank" class="attachment-name">@attachment.FileName</a>
-                        <span class="attachment-meta">@FormatSize(attachment.SizeBytes) &middot; @AuthorName(attachment.UploadedByUserId) &middot; @attachment.CreatedAt.ToLocalTime().ToString("g")</span>
-                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachment(attachment.Id)">Delete</button>
+                        <MudLink Href="@DownloadUrl(attachment.Id)" Target="_blank" Class="font-semibold">@attachment.FileName</MudLink>
+                        <span class="flex-1 text-xs text-ink-muted">@FormatSize(attachment.SizeBytes) &middot; @AuthorName(attachment.UploadedByUserId) &middot; @attachment.CreatedAt.ToLocalTime().ToString("g")</span>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteAttachment(attachment.Id)" />
                     </div>
                 }
             </div>
 
-            <InputFile OnChange="HandleFileSelected" />
+            <InputFile OnChange="HandleFileSelected"
+                       class="block w-full text-sm text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-ink hover:file:bg-surface-hover" />
             @if (!string.IsNullOrEmpty(uploadError))
             {
-                <p class="upload-error">@uploadError</p>
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@uploadError</MudAlert>
             }
-        </div>
+        </MudPaper>
 
-        <div class="field">
-            <label>Activity</label>
+        <MudPaper Outlined="true" Class="p-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Activity</MudText>
             <div class="activity-list">
                 @foreach (var entry in activityLog)
                 {
                     <div class="activity-entry">
-                        <span class="activity-text">@FormatActivity(entry)</span>
-                        <span class="activity-time">@entry.CreatedAt.ToLocalTime().ToString("g")</span>
+                        <span>@FormatActivity(entry)</span>
+                        <span class="whitespace-nowrap text-ink-faint">@entry.CreatedAt.ToLocalTime().ToString("g")</span>
                     </div>
                 }
             </div>
-        </div>
-    </div>
+        </MudPaper>
+    </MudPaper>
 }
 
 <style>
-    .card-detail {
-        max-width: 700px;
-        margin: 20px auto;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .back-link {
-        color: #666;
-        text-decoration: none;
-        font-size: 14px;
-    }
-
-    .title-input {
-        font-size: 24px;
+    .card-title-field .mud-input-slot {
+        font-size: 1.5rem;
         font-weight: 600;
-        border: none;
-        border-bottom: 2px solid transparent;
-        padding: 4px 0;
-    }
-
-    .title-input:focus {
-        outline: none;
-        border-bottom-color: #2196f3;
-    }
-
-    .field label {
-        display: block;
-        font-weight: 600;
-        font-size: 13px;
-        color: #555;
-        margin-bottom: 6px;
-    }
-
-    .field textarea, .field select, .field input[type="date"] {
-        width: 100%;
-        font-family: inherit;
-    }
-
-    .chip-row, .palette, .swatches, .label-delete {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 8px;
-    }
-
-    .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        color: white;
-        border: none;
-    }
-
-    .assignee-chip {
-        background: #6B7280;
-    }
-
-    .chip-remove {
-        background: transparent;
-        border: none;
-        color: inherit;
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-    .chip-add {
-        cursor: pointer;
-        opacity: 0.85;
+        color: var(--knb-text-primary);
     }
 
     .swatch {
@@ -300,119 +220,53 @@ else
     }
 
     .swatch.selected {
-        border-color: #333;
-    }
-
-    .label-create {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 8px;
-    }
-
-    .not-found {
-        max-width: 500px;
-        margin: 60px auto;
-        text-align: center;
-    }
-
-    .comment-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-
-    .comment {
-        background: #f8f9fa;
-        border-radius: 6px;
-        padding: 8px 10px;
-    }
-
-    .comment-meta {
-        font-size: 12px;
-        color: #666;
-        margin-bottom: 4px;
-        display: flex;
-        gap: 6px;
-        align-items: baseline;
-    }
-
-    .comment-edited {
-        font-style: italic;
-    }
-
-    .comment-text {
-        margin: 0 0 6px 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .comment-actions {
-        display: flex;
-        gap: 6px;
-    }
-
-    .checklist-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-bottom: 8px;
+        border-color: var(--knb-border-strong);
     }
 
     .checklist-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 4px 6px;
-        border-radius: 4px;
+        gap: 4px;
+        padding: 2px 6px;
+        border-radius: var(--knb-radius-sm);
         cursor: grab;
     }
 
     .checklist-item:hover {
-        background: #f8f9fa;
+        background: var(--knb-bg-surface-hover);
     }
 
     .checklist-item-text {
         flex: 1;
         cursor: text;
+        color: var(--knb-text-primary);
     }
 
     .checklist-item-text.done {
         text-decoration: line-through;
-        color: #999;
+        color: var(--knb-text-tertiary);
     }
 
-    .attachment-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-bottom: 8px;
+    .comment {
+        background: var(--knb-bg-surface-2);
+        border-radius: var(--knb-radius-md);
+        padding: 8px 10px;
+    }
+
+    .comment-text {
+        margin: 0;
+        color: var(--knb-text-primary);
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 
     .attachment-row {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 4px 6px;
-        background: #f8f9fa;
-        border-radius: 4px;
-    }
-
-    .attachment-name {
-        font-weight: 600;
-    }
-
-    .attachment-meta {
-        flex: 1;
-        font-size: 12px;
-        color: #666;
-    }
-
-    .upload-error {
-        color: #dc3545;
-        font-size: 13px;
-        margin-top: 4px;
+        padding: 4px 8px;
+        background: var(--knb-bg-surface-2);
+        border-radius: var(--knb-radius-md);
     }
 
     .activity-list {
@@ -428,13 +282,9 @@ else
         justify-content: space-between;
         gap: 8px;
         font-size: 13px;
+        color: var(--knb-text-secondary);
         padding: 3px 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .activity-time {
-        color: #999;
-        white-space: nowrap;
+        border-bottom: 1px solid var(--knb-border-subtle);
     }
 </style>
 
@@ -483,13 +333,13 @@ else
 
     private string title = string.Empty;
     private string description = string.Empty;
-    private string dueDateInput = string.Empty;
     private DateTime? dueDate;
 
     private List<Label> cardLabels = [];
     private List<Label> boardLabels = [];
     private List<ApplicationUser> cardAssignees = [];
     private List<BoardMember> boardMembers = [];
+    private string? selectedAssigneeId;
 
     private string newLabelName = string.Empty;
     private string newLabelColor = LabelSwatches.Colors[0];
@@ -552,7 +402,6 @@ else
             title = card.Title;
             description = card.Description;
             dueDate = card.DueDate;
-            dueDateInput = dueDate?.ToString("yyyy-MM-dd") ?? string.Empty;
 
             cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
             boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
@@ -646,11 +495,9 @@ else
         }
     }
 
-    private async Task HandleDueDateChanged(ChangeEventArgs e)
+    private async Task HandleDueDateChanged(DateTime? newDate)
     {
-        var value = e.Value?.ToString();
-        dueDate = string.IsNullOrWhiteSpace(value) ? null : DateTime.Parse(value);
-        dueDateInput = value ?? string.Empty;
+        dueDate = newDate;
         await SaveCardFields();
     }
 
@@ -712,9 +559,9 @@ else
         }
     }
 
-    private async Task AddAssignee(ChangeEventArgs e)
+    private async Task AddAssignee(string? assigneeUserId)
     {
-        var assigneeUserId = e.Value?.ToString();
+        selectedAssigneeId = null;
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(assigneeUserId)) return;
         try
         {

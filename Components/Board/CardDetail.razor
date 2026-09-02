@@ -78,29 +78,6 @@
                             <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{label.Color};color:{label.Color}")" OnClick="() => AddLabel(label.Id)">+ @label.Name</MudChip>
                         }
                     </div>
-
-                    @if (isOwner)
-                    {
-                        <div class="mt-3 flex flex-col gap-2">
-                            <MudTextField @bind-Value="newLabelName" Placeholder="New label name" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                            <div class="flex flex-wrap gap-2">
-                                @foreach (var color in LabelSwatches.Colors)
-                                {
-                                    <button type="button" class="swatch @(color == newLabelColor ? "selected" : "")"
-                                            style="background-color:@color" @onclick="() => newLabelColor = color"></button>
-                                }
-                            </div>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateLabel"
-                                       Disabled="@string.IsNullOrWhiteSpace(newLabelName)" Class="self-start">Create label</MudButton>
-                        </div>
-
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            @foreach (var label in boardLabels)
-                            {
-                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteLabel(label.Id)">Delete "@label.Name"</MudButton>
-                            }
-                        </div>
-                    }
                 </div>
 
                 <div class="section-block">
@@ -119,18 +96,7 @@
                         }
                     </div>
 
-                    <div class="mt-3 flex flex-col gap-2">
-                        <MudTextField @bind-Value="newProjectName" Placeholder="New project name" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                        <div class="flex flex-wrap gap-2">
-                            @foreach (var color in LabelSwatches.Colors)
-                            {
-                                <button type="button" class="swatch @(color == newProjectColor ? "selected" : "")"
-                                        style="background-color:@color" @onclick="() => newProjectColor = color"></button>
-                            }
-                        </div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateProject"
-                                   Disabled="@string.IsNullOrWhiteSpace(newProjectName)" Class="self-start">Create project</MudButton>
-                    </div>
+                    <MudLink Href="/projects" Target="_blank" Class="mt-2 inline-block" Underline="Underline.Hover">Manage projects</MudLink>
                 </div>
 
                 <div class="section-block">
@@ -752,10 +718,6 @@
     private List<BoardMember> boardMembers = [];
     private string? selectedAssigneeId;
 
-    private string newLabelName = string.Empty;
-    private string newLabelColor = LabelSwatches.Colors[0];
-    private string newProjectName = string.Empty;
-    private string newProjectColor = LabelSwatches.Colors[0];
     private string devReferenceUrl = string.Empty;
     private bool editingDevReferenceUrl = false;
     private string ticketUrl = string.Empty;
@@ -1075,36 +1037,6 @@
         }
     }
 
-    private async Task CreateLabel()
-    {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newLabelName)) return;
-        try
-        {
-            await LabelService.CreateLabelAsync(BoardId, userId, newLabelName, newLabelColor);
-            newLabelName = string.Empty;
-            newLabelColor = LabelSwatches.Colors[0];
-            await LoadCardData();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error creating label: {ex.Message}");
-        }
-    }
-
-    private async Task DeleteLabel(int labelId)
-    {
-        if (string.IsNullOrEmpty(userId)) return;
-        try
-        {
-            await LabelService.DeleteLabelAsync(labelId, userId);
-            await LoadCardData();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error deleting label: {ex.Message}");
-        }
-    }
-
     private async Task AddProject(int projectId)
     {
         if (string.IsNullOrEmpty(userId)) return;
@@ -1130,22 +1062,6 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error removing project: {ex.Message}");
-        }
-    }
-
-    private async Task CreateProject()
-    {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newProjectName)) return;
-        try
-        {
-            await ProjectService.CreateProjectAsync(BoardId, userId, newProjectName, newProjectColor);
-            newProjectName = string.Empty;
-            newProjectColor = LabelSwatches.Colors[0];
-            await LoadCardData();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error creating project: {ex.Message}");
         }
     }
 

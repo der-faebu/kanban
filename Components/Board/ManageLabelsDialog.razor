@@ -1,0 +1,182 @@
+@using Kanban.Services
+@using Kanban.Data.Entities
+
+<MudDialog>
+    <DialogContent>
+        <div class="manage-labels-header">
+            <MudText Typo="Typo.h6">Manage labels</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="Close" />
+        </div>
+
+        <div class="pill-flow">
+            @foreach (var label in labels)
+            {
+                <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">
+                    @label.Name
+                    @if (isOwner)
+                    {
+                        <button type="button" class="pill-remove" @onclick="() => DeleteLabel(label.Id)">&times;</button>
+                    }
+                </span>
+            }
+            @if (labels.Count == 0)
+            {
+                <MudText Class="text-ink-muted">No labels on this board yet.</MudText>
+            }
+        </div>
+
+        @if (isOwner)
+        {
+            <div class="mt-4 flex flex-col gap-2">
+                <MudTextField @bind-Value="newLabelName" Placeholder="New label name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var color in LabelSwatches.Colors)
+                    {
+                        <button type="button" class="swatch @(color == newLabelColor ? "selected" : "")"
+                                style="background-color:@color" @onclick="() => newLabelColor = color"></button>
+                    }
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateLabel"
+                           Disabled="@string.IsNullOrWhiteSpace(newLabelName)" Class="self-start">Create label</MudButton>
+            </div>
+        }
+    </DialogContent>
+</MudDialog>
+
+<style>
+    .manage-labels-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .pill-flow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .label-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 6px 3px 10px;
+        border-radius: var(--knb-radius-full);
+    }
+
+    .pill-remove {
+        border: none;
+        background: transparent;
+        color: inherit;
+        opacity: 0.7;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        padding: 0;
+    }
+
+        .pill-remove:hover {
+            opacity: 1;
+        }
+
+    .swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .swatch.selected {
+        border-color: var(--knb-border-strong);
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public int BoardId { get; set; }
+
+    [Inject]
+    private ILabelService LabelService { get; set; } = null!;
+
+    [Inject]
+    private IBoardService BoardService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    private string? userId;
+    private bool isOwner;
+    private List<Label> labels = [];
+    private string newLabelName = string.Empty;
+    private string newLabelColor = LabelSwatches.Colors[0];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        isOwner = await BoardService.IsUserBoardOwnerAsync(BoardId, userId);
+        await LoadLabels();
+    }
+
+    private async Task LoadLabels()
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            labels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading labels: {ex.Message}");
+        }
+    }
+
+    private async Task CreateLabel()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newLabelName)) return;
+        try
+        {
+            await LabelService.CreateLabelAsync(BoardId, userId, newLabelName, newLabelColor);
+            newLabelName = string.Empty;
+            newLabelColor = LabelSwatches.Colors[0];
+            await LoadLabels();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating label: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteLabel(int labelId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await LabelService.DeleteLabelAsync(labelId, userId);
+            await LoadLabels();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting label: {ex.Message}");
+        }
+    }
+
+    private void Close()
+    {
+        MudDialog.Close();
+    }
+}

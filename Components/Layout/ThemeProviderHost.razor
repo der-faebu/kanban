@@ -1,0 +1,31 @@
+@using Kanban.Services
+@using Kanban.Theme
+@inject ThemeState ThemeState
+@inject IJSRuntime JS
+@implements IDisposable
+
+<MudThemeProvider Theme="KanbanTheme.Theme" IsDarkMode="ThemeState.IsDarkMode" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeState.Changed += StateHasChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // The blocking inline script in App.razor's <head> already set data-theme
+            // synchronously before first paint; this just brings MudThemeProvider's
+            // IsDarkMode (only settable after the circuit connects) into agreement with it.
+            var theme = await JS.InvokeAsync<string>("knbGetTheme");
+            ThemeState.SetDarkMode(theme == "dark");
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeState.Changed -= StateHasChanged;
+    }
+}

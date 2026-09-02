@@ -1,0 +1,27 @@
+@using Kanban.Services
+@inject ThemeState ThemeState
+@inject IJSRuntime JS
+@implements IDisposable
+
+<MudIconButton Icon="@(ThemeState.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+               OnClick="Toggle"
+               title="@(ThemeState.IsDarkMode ? "Switch to light mode" : "Switch to dark mode")" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeState.Changed += StateHasChanged;
+    }
+
+    private async Task Toggle()
+    {
+        var next = !ThemeState.IsDarkMode;
+        ThemeState.SetDarkMode(next);
+        await JS.InvokeVoidAsync("knbSetTheme", next ? "dark" : "light");
+    }
+
+    public void Dispose()
+    {
+        ThemeState.Changed -= StateHasChanged;
+    }
+}

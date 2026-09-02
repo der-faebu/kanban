@@ -110,6 +110,23 @@ public class ProjectTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateProject_WithoutBoardId_SucceedsForAnyAuthenticatedUser()
+    {
+        // A user with zero board memberships anywhere -- the omitted BoardId means there's
+        // no membership check at all, matching "any authenticated user can create a project."
+        var otherUserId = await CreateOtherUserAsync();
+        AuthenticateAs(otherUserId);
+
+        var request = new CreateProjectRequest { Name = "Board-less Initiative", Color = "#3B82F6" };
+        var response = await _client.PostAsJsonAsync("/api/projects", request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var project = await response.Content.ReadFromJsonAsync<Project>();
+        Assert.NotNull(project);
+        Assert.Equal("Board-less Initiative", project!.Name);
+    }
+
+    [Fact]
     public async Task GetAllProjects_ReturnsCreatedProject()
     {
         AuthenticateAs(_userId);
@@ -122,6 +139,92 @@ public class ProjectTests : IAsyncLifetime
         var projects = await response.Content.ReadFromJsonAsync<List<Project>>();
         Assert.NotNull(projects);
         Assert.Contains(projects!, p => p.Name == "Rewrite Initiative");
+    }
+
+    [Fact]
+    public async Task UpdateProject_ReturnsOk_AndPersistsChanges()
+    {
+        AuthenticateAs(_userId);
+        var createResponse = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest { Name = "Old Name", Color = "#3B82F6", BoardId = _boardId });
+        var project = await createResponse.Content.ReadFromJsonAsync<Project>();
+
+        var response = await _client.PutAsJsonAsync($"/api/projects/{project!.Id}", new UpdateProjectRequest { Name = "New Name", Color = "#EAB308" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var listResponse = await _client.GetAsync("/api/projects");
+        var projects = await listResponse.Content.ReadFromJsonAsync<List<Project>>();
+        var updated = Assert.Single(projects!, p => p.Id == project.Id);
+        Assert.Equal("New Name", updated.Name);
+        Assert.Equal("#EAB308", updated.Color);
+    }
+
+    [Fact]
+    public async Task UpdateProject_ForNonexistentProject_ReturnsNotFound()
+    {
+        AuthenticateAs(_userId);
+
+        var response = await _client.PutAsJsonAsync("/api/projects/999999", new UpdateProjectRequest { Name = "Anything", Color = "#3B82F6" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteProject_ReturnsNoContent_AndRemovesFromList()
+    {
+        AuthenticateAs(_userId);
+        var createResponse = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest { Name = "To Delete", Color = "#3B82F6", BoardId = _boardId });
+        var project = await createResponse.Content.ReadFromJsonAsync<Project>();
+
+        var response = await _client.DeleteAsync($"/api/projects/{project!.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var listResponse = await _client.GetAsync("/api/projects");
+        var projects = await listResponse.Content.ReadFromJsonAsync<List<Project>>();
+        Assert.DoesNotContain(projects!, p => p.Id == project.Id);
+    }
+
+    [Fact]
+    public async Task DeleteProject_ForNonexistentProject_ReturnsNotFound()
+    {
+        AuthenticateAs(_userId);
+
+        var response = await _client.DeleteAsync("/api/projects/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeletedProject_StillShowsOnACardAlreadyTaggedWithIt()
+    {
+        AuthenticateAs(_userId);
+        var createResponse = await _client.PostAsJsonAsync("/api/projects", new CreateProjectRequest { Name = "Sunset Initiative", Color = "#3B82F6", BoardId = _boardId });
+        var project = await createResponse.Content.ReadFromJsonAsync<Project>();
+
+        int cardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+        await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/projects", new AddCardProjectRequest { ProjectId = project!.Id });
+
+        await _client.DeleteAsync($"/api/projects/{project.Id}");
+
+        // Gone from the global picker/management list...
+        var listResponse = await _client.GetAsync("/api/projects");
+        var projects = await listResponse.Content.ReadFromJsonAsync<List<Project>>();
+        Assert.DoesNotContain(projects!, p => p.Id == project.Id);
+
+        // ...but the card it was already tagged with still shows it, matching Label's
+        // soft-delete behavior.
+        var cardProjectsResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}/projects");
+        var cardProjects = await cardProjectsResponse.Content.ReadFromJsonAsync<List<Project>>();
+        Assert.Contains(cardProjects!, p => p.Id == project.Id);
     }
 
     [Fact]

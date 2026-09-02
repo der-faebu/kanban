@@ -5,6 +5,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        // Blocking and synchronous by design: runs before the stylesheets below are
+        // applied, so data-theme is already correct on first paint -- no flash from
+        // light to dark (or vice versa) once theme.css loads.
+        (function () {
+            var stored = localStorage.getItem('knb-theme');
+            var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
@@ -22,6 +32,7 @@
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="@Assets["Components/Account/Shared/PasskeySubmit.razor.js"]" type="module"></script>
+    <script src="@Assets["js/theme.js"]"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
 

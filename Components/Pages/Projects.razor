@@ -1,0 +1,231 @@
+@page "/projects"
+@rendermode InteractiveServer
+@using Kanban.Services
+@using Kanban.Data.Entities
+@using Kanban.Components.Board
+@attribute [Authorize]
+
+<PageTitle>Projects</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <MudText Typo="Typo.h4">Projects</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="ToggleNewProjectForm">New Project</MudButton>
+    </div>
+
+    @if (showNewProjectForm)
+    {
+        <MudPaper Outlined="true" Class="mb-6 pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Project</MudText>
+            <div class="flex flex-col gap-3">
+                <MudTextField @bind-Value="newProjectName" Label="Project name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var color in LabelSwatches.Colors)
+                    {
+                        <button type="button" class="swatch @(color == newProjectColor ? "selected" : "")"
+                                style="background-color:@color" @onclick="() => newProjectColor = color"></button>
+                    }
+                </div>
+                <div class="flex gap-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateProject" Disabled="@string.IsNullOrWhiteSpace(newProjectName)">Create</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="ToggleNewProjectForm">Cancel</MudButton>
+                </div>
+            </div>
+        </MudPaper>
+    }
+
+    @if (projects != null && projects.Count > 0)
+    {
+        <div class="flex flex-col gap-2">
+            @foreach (var project in projects)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    @if (editingProjectId == project.Id)
+                    {
+                        <div class="flex flex-col gap-3">
+                            <MudTextField @bind-Value="editingName" Label="Project name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var color in LabelSwatches.Colors)
+                                {
+                                    <button type="button" class="swatch @(color == editingColor ? "selected" : "")"
+                                            style="background-color:@color" @onclick="() => editingColor = color"></button>
+                                }
+                            </div>
+                            <div class="flex gap-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="SaveEdit" Disabled="@string.IsNullOrWhiteSpace(editingName)">Save</MudButton>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEdit">Cancel</MudButton>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-3">
+                            <span class="project-swatch" style="background-color:@project.Color"></span>
+                            <MudText Class="flex-1">@project.Name</MudText>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartEdit(project)">Rename</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteProject(project.Id)">Delete</MudButton>
+                        </div>
+                    }
+                </MudPaper>
+            }
+        </div>
+    }
+    else if (loading)
+    {
+        <MudText Class="text-ink-muted">Loading projects...</MudText>
+    }
+    else
+    {
+        <MudText Class="text-ink-muted">
+            No projects yet.
+            <MudLink OnClick="ToggleNewProjectForm" Class="cursor-pointer">Create one</MudLink>
+        </MudText>
+    }
+</MudContainer>
+
+<style>
+    .project-swatch {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .swatch.selected {
+        border-color: var(--knb-border-strong);
+    }
+</style>
+
+@code {
+    [Inject]
+    private IProjectService ProjectService { get; set; } = null!;
+
+    [Inject]
+    private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = null!;
+
+    private List<Project>? projects;
+    private bool loading = true;
+    private bool showNewProjectForm = false;
+    private string newProjectName = string.Empty;
+    private string newProjectColor = LabelSwatches.Colors[0];
+
+    private int? editingProjectId;
+    private string editingName = string.Empty;
+    private string editingColor = LabelSwatches.Colors[0];
+
+    private string? userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            NavigationManager.NavigateTo("/Account/Login");
+            return;
+        }
+
+        await LoadProjects();
+        loading = false;
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            projects = await ProjectService.GetAllProjectsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading projects: {ex.Message}");
+        }
+    }
+
+    private void ToggleNewProjectForm()
+    {
+        showNewProjectForm = !showNewProjectForm;
+        if (!showNewProjectForm)
+        {
+            newProjectName = string.Empty;
+            newProjectColor = LabelSwatches.Colors[0];
+        }
+    }
+
+    private async Task CreateProject()
+    {
+        if (string.IsNullOrWhiteSpace(newProjectName) || string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            // No board is in context on this page, so there's nothing to check membership
+            // against or broadcast to -- see ProjectService.CreateProjectAsync's boardId doc.
+            await ProjectService.CreateProjectAsync(null, userId, newProjectName, newProjectColor);
+            await LoadProjects();
+            showNewProjectForm = false;
+            newProjectName = string.Empty;
+            newProjectColor = LabelSwatches.Colors[0];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating project: {ex.Message}");
+        }
+    }
+
+    private void StartEdit(Project project)
+    {
+        editingProjectId = project.Id;
+        editingName = project.Name;
+        editingColor = project.Color;
+    }
+
+    private void CancelEdit()
+    {
+        editingProjectId = null;
+        editingName = string.Empty;
+        editingColor = LabelSwatches.Colors[0];
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingProjectId is not int projectId || string.IsNullOrWhiteSpace(editingName))
+            return;
+
+        try
+        {
+            await ProjectService.UpdateProjectAsync(projectId, editingName, editingColor);
+            CancelEdit();
+            await LoadProjects();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating project: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteProject(int projectId)
+    {
+        try
+        {
+            await ProjectService.DeleteProjectAsync(projectId);
+            await LoadProjects();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting project: {ex.Message}");
+        }
+    }
+}

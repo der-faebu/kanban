@@ -906,6 +906,7 @@
         hubConnection.On<JsonElement>("ActivityLogged", async data => await RefreshIfForThisCard(data));
         // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
         hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
+        hubConnection.On<JsonElement>("LabelUpdated", async _ => await Refresh());
         hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
         hubConnection.On<JsonElement>("ProjectCreated", async _ => await Refresh());
 

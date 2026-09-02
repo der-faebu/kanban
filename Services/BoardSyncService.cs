@@ -28,6 +28,7 @@ public interface IBoardSyncService
     Task BroadcastLabelAddedAsync(int boardId, int cardId, int labelId);
     Task BroadcastLabelRemovedAsync(int boardId, int cardId, int labelId);
     Task BroadcastLabelCreatedAsync(int boardId, int labelId, string name, string color);
+    Task BroadcastLabelUpdatedAsync(int boardId, int labelId, string name, string color);
     Task BroadcastLabelDeletedAsync(int boardId, int labelId);
     Task BroadcastProjectCreatedAsync(int boardId, int projectId, string name, string color);
     Task BroadcastProjectAddedAsync(int boardId, int cardId, int projectId);
@@ -176,6 +177,12 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("LabelCreated", new { labelId, name, color, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastLabelUpdatedAsync(int boardId, int labelId, string name, string color)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("LabelUpdated", new { labelId, name, color, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastLabelDeletedAsync(int boardId, int labelId)

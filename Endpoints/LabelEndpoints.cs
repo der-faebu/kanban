@@ -18,6 +18,11 @@ public static class LabelEndpoints
             .Produces<List<object>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        labelGroup.MapPut("/{labelId}", UpdateLabel)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         labelGroup.MapDelete("/{labelId}", DeleteLabel)
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
@@ -57,6 +62,26 @@ public static class LabelEndpoints
         catch (InvalidOperationException)
         {
             return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> UpdateLabel(HttpContext context, ILabelService labelService, int boardId, int labelId, UpdateLabelRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest("Label name is required");
+
+        try
+        {
+            await labelService.UpdateLabelAsync(labelId, userId, request.Name, request.Color);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
         }
     }
 

@@ -415,6 +415,64 @@ public class CardTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateLabel_ReturnsOk_AndPersistsChanges()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int labelId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var label = new Label { BoardId = _boardId, Name = "Old Name", Color = "#FF0000" };
+            dbContext.Labels.Add(label);
+            await dbContext.SaveChangesAsync();
+            labelId = label.Id;
+        }
+
+        var request = new UpdateLabelRequest { Name = "New Name", Color = "#00FF00" };
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/labels/{labelId}", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/boards/{_boardId}/labels");
+        var labels = await getResponse.Content.ReadFromJsonAsync<List<Label>>();
+        var updated = Assert.Single(labels!, l => l.Id == labelId);
+        Assert.Equal("New Name", updated.Name);
+        Assert.Equal("#00FF00", updated.Color);
+    }
+
+    [Fact]
+    public async Task UpdateLabel_ForNonexistentLabel_ReturnsNotFound()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/labels/999999", new UpdateLabelRequest { Name = "Anything", Color = "#FF0000" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateLabel_AsNonBoardMember_IsRejected()
+    {
+        int labelId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var label = new Label { BoardId = _boardId, Name = "Bug", Color = "#FF0000" };
+            dbContext.Labels.Add(label);
+            await dbContext.SaveChangesAsync();
+            labelId = label.Id;
+        }
+
+        var otherUserId = await CreateOtherUserAsync();
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(otherUserId));
+
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/labels/{labelId}", new UpdateLabelRequest { Name = "Hijacked", Color = "#000000" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AddLabel_ToCard_ReturnsOk()
     {
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));

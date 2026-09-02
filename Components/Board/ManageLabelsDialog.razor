@@ -8,16 +8,37 @@
             <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="Close" />
         </div>
 
-        <div class="pill-flow">
+        <div class="flex flex-col gap-2">
             @foreach (var label in labels)
             {
-                <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">
-                    @label.Name
-                    @if (isOwner)
-                    {
-                        <button type="button" class="pill-remove" @onclick="() => DeleteLabel(label.Id)">&times;</button>
-                    }
-                </span>
+                @if (editingLabelId == label.Id)
+                {
+                    <div class="label-edit-row">
+                        <MudTextField @bind-Value="editingName" Placeholder="Label name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var color in LabelSwatches.Colors)
+                            {
+                                <button type="button" class="swatch @(color == editingColor ? "selected" : "")"
+                                        style="background-color:@color" @onclick="() => editingColor = color"></button>
+                            }
+                        </div>
+                        <div class="flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="SaveEdit" Disabled="@string.IsNullOrWhiteSpace(editingName)">Save</MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEdit">Cancel</MudButton>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="label-row">
+                        <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">@label.Name</span>
+                        @if (isOwner)
+                        {
+                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartEdit(label)">Edit</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteLabel(label.Id)">Delete</MudButton>
+                        }
+                    </div>
+                }
             }
             @if (labels.Count == 0)
             {
@@ -51,11 +72,22 @@
         margin-bottom: 16px;
     }
 
-    .pill-flow {
+    .label-row {
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
         align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background: var(--knb-bg-surface-2);
+        border-radius: var(--knb-radius-md);
+    }
+
+    .label-edit-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px;
+        background: var(--knb-bg-surface-2);
+        border-radius: var(--knb-radius-md);
     }
 
     .label-pill {
@@ -118,6 +150,10 @@
     private string newLabelName = string.Empty;
     private string newLabelColor = LabelSwatches.Colors[0];
 
+    private int? editingLabelId;
+    private string editingName = string.Empty;
+    private string editingColor = LabelSwatches.Colors[0];
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -158,6 +194,37 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error creating label: {ex.Message}");
+        }
+    }
+
+    private void StartEdit(Label label)
+    {
+        editingLabelId = label.Id;
+        editingName = label.Name;
+        editingColor = label.Color;
+    }
+
+    private void CancelEdit()
+    {
+        editingLabelId = null;
+        editingName = string.Empty;
+        editingColor = LabelSwatches.Colors[0];
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingLabelId is not int labelId || string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(editingName))
+            return;
+
+        try
+        {
+            await LabelService.UpdateLabelAsync(labelId, userId, editingName, editingColor);
+            CancelEdit();
+            await LoadLabels();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating label: {ex.Message}");
         }
     }
 

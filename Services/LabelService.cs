@@ -8,6 +8,7 @@ public interface ILabelService
 {
     Task<Label> CreateLabelAsync(int boardId, string userId, string name, string color);
     Task<List<Label>> GetBoardLabelsAsync(int boardId, string userId);
+    Task UpdateLabelAsync(int labelId, string userId, string name, string color);
     Task DeleteLabelAsync(int labelId, string userId);
 }
 
@@ -54,6 +55,26 @@ public class LabelService(IDbContextFactory<ApplicationDbContext> contextFactory
         return await context.Labels
             .Where(l => l.BoardId == boardId && !l.IsDeleted)
             .ToListAsync();
+    }
+
+    public async Task UpdateLabelAsync(int labelId, string userId, string name, string color)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var label = await context.Labels.FirstOrDefaultAsync(l => l.Id == labelId && !l.IsDeleted);
+        if (label == null)
+            throw new InvalidOperationException("Label not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(label.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = label.BoardId;
+        label.Name = name;
+        label.Color = color;
+        label.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastLabelUpdatedAsync(boardId, labelId, label.Name, label.Color);
     }
 
     public async Task DeleteLabelAsync(int labelId, string userId)

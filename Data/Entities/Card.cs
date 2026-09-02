@@ -14,6 +14,9 @@ public class Card
     public CardType? Type { get; set; }
     public string? DevReferenceUrl { get; set; }
     public string? TicketUrl { get; set; }
+    public decimal? EstimatedHours { get; set; }
+    public int? ParentCardId { get; set; }
+    public Card? ParentCard { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -21,4 +24,5 @@ public class Card
     public ICollection<CardAssignee> Assignees { get; set; } = [];
     public ICollection<CardLabel> Labels { get; set; } = [];
     public ICollection<CardProject> Projects { get; set; } = [];
+    public ICollection<Card> Children { get; set; } = [];
 }

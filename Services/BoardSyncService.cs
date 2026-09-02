@@ -15,6 +15,10 @@ public interface IBoardSyncService
     Task BroadcastCardTypeChangedAsync(int boardId, int cardId, CardType? type);
     Task BroadcastCardDevReferenceUrlChangedAsync(int boardId, int cardId, string? url);
     Task BroadcastCardTicketUrlChangedAsync(int boardId, int cardId, string? url);
+    Task BroadcastCardEstimatedHoursChangedAsync(int boardId, int cardId, decimal? estimatedHours);
+    Task BroadcastTimeLogEntryAddedAsync(int boardId, int cardId, int entryId);
+    Task BroadcastTimeLogEntryUpdatedAsync(int boardId, int cardId, int entryId);
+    Task BroadcastTimeLogEntryDeletedAsync(int boardId, int cardId, int entryId);
     Task BroadcastListCreatedAsync(int boardId, int listId, string name);
     Task BroadcastListUpdatedAsync(int boardId, int listId, string name);
     Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions);
@@ -94,6 +98,30 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("CardTicketUrlChanged", new { cardId, url, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardEstimatedHoursChangedAsync(int boardId, int cardId, decimal? estimatedHours)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardEstimatedHoursChanged", new { cardId, estimatedHours, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastTimeLogEntryAddedAsync(int boardId, int cardId, int entryId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("TimeLogEntryAdded", new { cardId, entryId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastTimeLogEntryUpdatedAsync(int boardId, int cardId, int entryId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("TimeLogEntryUpdated", new { cardId, entryId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastTimeLogEntryDeletedAsync(int boardId, int cardId, int entryId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("TimeLogEntryDeleted", new { cardId, entryId, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastListCreatedAsync(int boardId, int listId, string name)

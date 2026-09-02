@@ -198,7 +198,19 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<CardDetail>(string.Empty, parameters, options);
-        await dialog.Result;
+        var result = await dialog.Result;
+
+        if (result?.Canceled == false && result.Data is int nextCardId)
+        {
+            // CardDetail closed itself with the target card's id (a parent/sub-card link was
+            // clicked) rather than being dismissed. Chain straight into the next card's dialog
+            // in code, instead of a NavigationManager.NavigateTo the dialog's own
+            // CloseOnNavigation would race against this method's continuation.
+            openDialogForCardId = nextCardId;
+            NavigationManager.NavigateTo($"/board/{BoardId}/card/{nextCardId}", replace: true);
+            await OpenCardDialog(nextCardId);
+            return;
+        }
 
         openDialogForCardId = null;
         if (CardId.HasValue)

@@ -194,6 +194,83 @@
                 </div>
 
                 <div class="section-block">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Time tracking</MudText>
+                    <div class="prop-row mb-2">
+                        <MudNumericField T="decimal?" @bind-Value="estimatedHours" Immediate="true" OnBlur="SaveEstimatedHours"
+                                         Label="Estimate (hours)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
+                        <MudText Class="text-ink-muted self-center">Logged: @loggedHours.ToString("0.##")h</MudText>
+                    </div>
+
+                    <div class="mb-3 flex flex-col gap-2">
+                        @foreach (var entry in timeLogEntries)
+                        {
+                            <div class="time-entry-row">
+                                @if (editingTimeEntryId == entry.Id)
+                                {
+                                    <MudDatePicker Date="editingEntryDate" DateChanged="d => editingEntryDate = d" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
+                                    <MudNumericField T="decimal?" @bind-Value="editingEntryHours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Placeholder="Hours" Min="0" />
+                                    <MudTextField @bind-Value="editingEntryNote" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Note (optional)" FullWidth="true" />
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveTimeEntryEdit(entry.Id)">Save</MudButton>
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEditingTimeEntry">Cancel</MudButton>
+                                }
+                                else
+                                {
+                                    <span class="time-entry-summary">
+                                        <strong>@entry.DurationHours.ToString("0.##")h</strong> on @entry.Date.ToShortDateString()
+                                        @if (!string.IsNullOrWhiteSpace(entry.Note))
+                                        {
+                                            <span class="text-ink-muted"> &mdash; @entry.Note</span>
+                                        }
+                                    </span>
+                                    @if (entry.UserId == userId)
+                                    {
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartEditingTimeEntry(entry)">Edit</MudButton>
+                                    }
+                                    @if (entry.UserId == userId || isOwner)
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteTimeEntry(entry.Id)">Delete</MudButton>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 items-end">
+                        <MudDatePicker Date="newEntryDate" DateChanged="d => newEntryDate = d" Label="Date" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
+                        <MudNumericField T="decimal?" @bind-Value="newEntryHours" Label="Hours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
+                        <MudTextField @bind-Value="newEntryNote" Placeholder="Note (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddTimeEntry" Disabled="@(newEntryHours is not > 0 || !newEntryDate.HasValue)">Log time</MudButton>
+                    </div>
+                </div>
+
+                @if (parentCardId.HasValue)
+                {
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Parent card</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="() => NavigateToCard(parentCardId.Value)">@(parentCardTitle ?? $"Card #{parentCardId}")</MudButton>
+                    </div>
+                }
+                else
+                {
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Sub-cards (@subCards.Count)</MudText>
+                        <div class="mb-2 flex flex-col gap-1">
+                            @foreach (var sub in subCards)
+                            {
+                                <div class="sub-card-row">
+                                    <span class="@(sub.State == CardState.Done ? "done" : "")">@sub.Title</span>
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => NavigateToCard(sub.Id)">Open</MudButton>
+                                </div>
+                            }
+                        </div>
+                        <div class="flex gap-2">
+                            <MudTextField @bind-Value="newSubCardTitle" Placeholder="New sub-card title" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateSubCard" Disabled="@string.IsNullOrWhiteSpace(newSubCardTitle)">Add sub-card</MudButton>
+                        </div>
+                    </div>
+                }
+
+                <div class="section-block">
                     <div class="section-header">
                         <MudText Typo="Typo.subtitle2">Description</MudText>
                         @if (!editingDescription)
@@ -557,6 +634,25 @@
         border-radius: var(--knb-radius-md);
     }
 
+    .time-entry-row, .sub-card-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background: var(--knb-bg-surface-2);
+        border-radius: var(--knb-radius-md);
+    }
+
+    .time-entry-summary, .sub-card-row span {
+        flex: 1;
+        font-size: 13px;
+    }
+
+    .sub-card-row span.done {
+        text-decoration: line-through;
+        color: var(--knb-text-tertiary);
+    }
+
     .activity-list {
         display: flex;
         flex-direction: column;
@@ -612,6 +708,9 @@
 
     [Inject]
     private ICommentService CommentService { get; set; } = null!;
+
+    [Inject]
+    private ITimeTrackingService TimeTrackingService { get; set; } = null!;
 
     [Inject]
     private IChecklistService ChecklistService { get; set; } = null!;
@@ -680,6 +779,22 @@
     private string? uploadError;
     private List<CardActivity> activityLog = [];
 
+    private decimal? estimatedHours;
+    private decimal loggedHours;
+    private List<TimeLogEntry> timeLogEntries = [];
+    private int? editingTimeEntryId;
+    private DateTime? editingEntryDate;
+    private decimal? editingEntryHours;
+    private string editingEntryNote = string.Empty;
+    private DateTime? newEntryDate = DateTime.UtcNow.Date;
+    private decimal? newEntryHours;
+    private string newEntryNote = string.Empty;
+
+    private int? parentCardId;
+    private string? parentCardTitle;
+    private List<Card> subCards = [];
+    private string newSubCardTitle = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         loading = true;
@@ -725,6 +840,8 @@
             type = card.Type;
             devReferenceUrl = card.DevReferenceUrl ?? string.Empty;
             ticketUrl = card.TicketUrl ?? string.Empty;
+            estimatedHours = card.EstimatedHours;
+            parentCardId = card.ParentCardId;
 
             cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
             boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
@@ -737,6 +854,20 @@
             checklistItems = await ChecklistService.GetItemsAsync(CardId, userId);
             attachments = await AttachmentService.GetAttachmentsAsync(CardId, userId);
             activityLog = await ActivityLogService.GetCardActivityAsync(CardId, userId);
+            timeLogEntries = await TimeTrackingService.GetCardTimeLogEntriesAsync(CardId, userId);
+            loggedHours = await TimeTrackingService.GetCardLoggedHoursAsync(CardId, userId);
+
+            if (parentCardId.HasValue)
+            {
+                var parentCard = await CardService.GetCardByIdAsync(parentCardId.Value, userId);
+                parentCardTitle = parentCard?.Title;
+                subCards = [];
+            }
+            else
+            {
+                parentCardTitle = null;
+                subCards = await CardService.GetSubCardsAsync(CardId, userId);
+            }
 
             authorNames = boardMembers
                 .Where(m => m.User != null)
@@ -790,6 +921,10 @@
         hubConnection.On<JsonElement>("CardTypeChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardDevReferenceUrlChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardTicketUrlChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardEstimatedHoursChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("TimeLogEntryAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("TimeLogEntryUpdated", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("TimeLogEntryDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
@@ -1248,6 +1383,114 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting comment: {ex.Message}");
+        }
+    }
+
+    private async Task SaveEstimatedHours()
+    {
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetEstimatedHoursAsync(CardId, userId, estimatedHours);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating estimate: {ex.Message}");
+        }
+    }
+
+    private async Task AddTimeEntry()
+    {
+        if (string.IsNullOrEmpty(userId) || newEntryHours is not > 0 || !newEntryDate.HasValue)
+            return;
+
+        try
+        {
+            await TimeTrackingService.AddTimeLogEntryAsync(CardId, userId, newEntryDate.Value, newEntryHours.Value, string.IsNullOrWhiteSpace(newEntryNote) ? null : newEntryNote);
+            newEntryDate = DateTime.UtcNow.Date;
+            newEntryHours = null;
+            newEntryNote = string.Empty;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error logging time: {ex.Message}");
+        }
+    }
+
+    private void StartEditingTimeEntry(TimeLogEntry entry)
+    {
+        editingTimeEntryId = entry.Id;
+        editingEntryDate = entry.Date;
+        editingEntryHours = entry.DurationHours;
+        editingEntryNote = entry.Note ?? string.Empty;
+    }
+
+    private void CancelEditingTimeEntry()
+    {
+        editingTimeEntryId = null;
+        editingEntryDate = null;
+        editingEntryHours = null;
+        editingEntryNote = string.Empty;
+    }
+
+    private async Task SaveTimeEntryEdit(int entryId)
+    {
+        if (string.IsNullOrEmpty(userId) || editingEntryHours is not > 0 || !editingEntryDate.HasValue)
+        {
+            CancelEditingTimeEntry();
+            return;
+        }
+
+        try
+        {
+            await TimeTrackingService.UpdateTimeLogEntryAsync(entryId, userId, editingEntryDate.Value, editingEntryHours.Value, string.IsNullOrWhiteSpace(editingEntryNote) ? null : editingEntryNote);
+            CancelEditingTimeEntry();
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error editing time entry: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteTimeEntry(int entryId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await TimeTrackingService.DeleteTimeLogEntryAsync(entryId, userId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting time entry: {ex.Message}");
+        }
+    }
+
+    private void NavigateToCard(int targetCardId)
+    {
+        // Close this dialog with the target card id as its result payload, rather than
+        // NavigationManager.NavigateTo -- BoardView.OpenCardDialog chains straight into the
+        // next card's dialog from that result, sidestepping a race between MudDialog's
+        // CloseOnNavigation and the router re-rendering BoardView for a URL-based approach.
+        MudDialog.Close(DialogResult.Ok(targetCardId));
+    }
+
+    private async Task CreateSubCard()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newSubCardTitle)) return;
+        try
+        {
+            await CardService.CreateSubCardAsync(CardId, userId, newSubCardTitle, "");
+            newSubCardTitle = string.Empty;
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating sub-card: {ex.Message}");
         }
     }
 

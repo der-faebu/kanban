@@ -617,6 +617,104 @@ public class CardTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task CreateSubCard_ReturnsCreated_AndSetsParentCardId()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int parentCardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Parent Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            parentCardId = card.Id;
+        }
+
+        var request = new CreateCardRequest { Title = "Sub-card" };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var subCard = await response.Content.ReadFromJsonAsync<Card>();
+        Assert.NotNull(subCard);
+        Assert.Equal(parentCardId, subCard!.ParentCardId);
+        Assert.Equal(_listId, subCard.ListId);
+    }
+
+    [Fact]
+    public async Task GetSubCards_ReturnsChildrenOfParent()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int parentCardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Parent Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            parentCardId = card.Id;
+        }
+
+        await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Sub-card 1" });
+        await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Sub-card 2" });
+
+        var response = await _client.GetAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards");
+        var subCards = await response.Content.ReadFromJsonAsync<List<Card>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, subCards!.Count);
+        Assert.All(subCards, c => Assert.Equal(parentCardId, c.ParentCardId));
+    }
+
+    [Fact]
+    public async Task CreateSubCard_UnderACardThatIsItselfASubCard_IsRejected()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int parentCardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Parent Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            parentCardId = card.Id;
+        }
+
+        var childResponse = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Child card" });
+        var childCard = await childResponse.Content.ReadFromJsonAsync<Card>();
+
+        // childCard already has a ParentCardId -- giving it children (i.e. nesting a
+        // grandchild under it) must be rejected, since a card can be a parent or a
+        // child but never both.
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{childCard!.Id}/subcards", new CreateCardRequest { Title = "Grandchild card" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateSubCard_AsNonBoardMember_IsRejected()
+    {
+        int parentCardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Parent Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            parentCardId = card.Id;
+        }
+
+        var otherUserId = await CreateOtherUserAsync();
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(otherUserId));
+
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Sub-card" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private async Task<string> CreateOtherUserAsync()
     {
         var otherUserId = Guid.NewGuid().ToString();

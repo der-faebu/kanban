@@ -16,6 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<CardProject> CardProjects => Set<CardProject>();
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<TimeLogEntry> TimeLogEntries => Set<TimeLogEntry>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<CardActivity> CardActivities => Set<CardActivity>();
@@ -127,6 +128,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany()
             .HasForeignKey(c => c.AuthorId)
             .IsRequired();
+
+        builder.Entity<TimeLogEntry>()
+            .HasOne(t => t.Card)
+            .WithMany()
+            .HasForeignKey(t => t.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<TimeLogEntry>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .IsRequired();
+
+        builder.Entity<Card>()
+            .HasOne(c => c.ParentCard)
+            .WithMany(c => c.Children)
+            .HasForeignKey(c => c.ParentCardId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<ChecklistItem>()
             .HasOne(i => i.Card)

@@ -93,6 +93,18 @@ public static class CardEndpoints
         cardGroup.MapPut("/{cardId}/ticket-link", SetTicketUrl)
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPut("/{cardId}/estimate", SetEstimatedHours)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPost("/{cardId}/subcards", CreateSubCard)
+            .Produces<object>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        cardGroup.MapGet("/{cardId}/subcards", GetSubCards)
+            .Produces<List<object>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> CreateCard(HttpContext context, ICardService cardService, int listId, CreateCardRequest request)
@@ -448,6 +460,60 @@ public static class CardEndpoints
         catch (InvalidOperationException ex)
         {
             return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> SetEstimatedHours(HttpContext context, ICardService cardService, int listId, int cardId, SetCardEstimateRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.SetEstimatedHoursAsync(cardId, userId, request.EstimatedHours);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> CreateSubCard(HttpContext context, ICardService cardService, int listId, int cardId, CreateCardRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return Results.BadRequest("Card title is required");
+
+        try
+        {
+            var card = await cardService.CreateSubCardAsync(cardId, userId, request.Title, request.Description ?? "");
+            return Results.Created($"/api/lists/{card.ListId}/cards/{card.Id}", card);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> GetSubCards(HttpContext context, ICardService cardService, int listId, int cardId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var subCards = await cardService.GetSubCardsAsync(cardId, userId);
+            return Results.Ok(subCards);
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
         }
     }
 }

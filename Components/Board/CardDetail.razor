@@ -33,346 +33,349 @@
         }
         else
         {
-            <div class="card-dialog-body">
-                <div class="prop-row">
-                    <MudSelect T="CardState" Value="state" ValueChanged="HandleStateChanged" Placeholder="State"
-                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control">
-                        @foreach (var s in Enum.GetValues<CardState>())
-                        {
-                            <MudSelectItem T="CardState" Value="s">@CardStateStyles.Label(s)</MudSelectItem>
-                        }
-                    </MudSelect>
+            <div class="card-dialog-columns">
+                <div class="card-dialog-left">
+                    <div class="prop-row">
+                        <MudSelect T="CardState" Value="state" ValueChanged="HandleStateChanged" Placeholder="State"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control">
+                            @foreach (var s in Enum.GetValues<CardState>())
+                            {
+                                <MudSelectItem T="CardState" Value="s">@CardStateStyles.Label(s)</MudSelectItem>
+                            }
+                        </MudSelect>
 
-                    <MudSelect T="CardType?" Value="type" ValueChanged="HandleTypeChanged" Placeholder="Type"
-                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
-                        @foreach (var t in Enum.GetValues<CardType>())
-                        {
-                            <MudSelectItem T="CardType?" Value="t">@CardTypeStyles.Label(t)</MudSelectItem>
-                        }
-                    </MudSelect>
+                        <MudSelect T="CardType?" Value="type" ValueChanged="HandleTypeChanged" Placeholder="Type"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
+                            @foreach (var t in Enum.GetValues<CardType>())
+                            {
+                                <MudSelectItem T="CardType?" Value="t">@CardTypeStyles.Label(t)</MudSelectItem>
+                            }
+                        </MudSelect>
 
-                    <MudSelect T="CardPriority?" Value="priority" ValueChanged="HandlePriorityChanged" Placeholder="Priority"
-                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
-                        @foreach (var level in Enum.GetValues<CardPriority>())
-                        {
-                            <MudSelectItem T="CardPriority?" Value="level">@CardPriorityStyles.Label(level)</MudSelectItem>
-                        }
-                    </MudSelect>
+                        <MudSelect T="CardPriority?" Value="priority" ValueChanged="HandlePriorityChanged" Placeholder="Priority"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="prop-control">
+                            @foreach (var level in Enum.GetValues<CardPriority>())
+                            {
+                                <MudSelectItem T="CardPriority?" Value="level">@CardPriorityStyles.Label(level)</MudSelectItem>
+                            }
+                        </MudSelect>
 
-                    <MudDatePicker Date="dueDate" DateChanged="HandleDueDateChanged" Placeholder="Due date"
-                                    Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Editable="true" Class="prop-control" />
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Labels</MudText>
-                    <div class="pill-flow">
-                        @foreach (var label in cardLabels)
-                        {
-                            <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">
-                                @label.Name
-                                <button type="button" class="pill-remove" @onclick="() => RemoveLabel(label.Id)">&times;</button>
-                            </span>
-                        }
-                        @foreach (var label in boardLabels.Where(l => !cardLabels.Any(cl => cl.Id == l.Id)))
-                        {
-                            <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{label.Color};color:{label.Color}")" OnClick="() => AddLabel(label.Id)">+ @label.Name</MudChip>
-                        }
-                    </div>
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Projects</MudText>
-                    <div class="pill-flow">
-                        @foreach (var project in cardProjects)
-                        {
-                            <span class="project-pill" style="background-color:@project.Color;color:@CardVisualStyles.ContrastText(project.Color)">
-                                📁 @project.Name
-                                <button type="button" class="pill-remove" @onclick="() => RemoveProject(project.Id)">&times;</button>
-                            </span>
-                        }
-                        @foreach (var project in allProjects.Where(p => !cardProjects.Any(cp => cp.Id == p.Id)))
-                        {
-                            <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{project.Color};color:{project.Color}")" OnClick="() => AddProject(project.Id)">+ 📁 @project.Name</MudChip>
-                        }
+                        <MudDatePicker Date="dueDate" DateChanged="HandleDueDateChanged" Placeholder="Due date"
+                                        Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Editable="true" Class="prop-control" />
                     </div>
 
-                    <MudLink Href="/projects" Target="_blank" Class="mt-2 inline-block" Underline="Underline.Hover">Manage projects</MudLink>
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Assignees</MudText>
-                    <div class="pill-flow mb-2">
-                        @foreach (var assignee in cardAssignees)
-                        {
-                            var (bg, fg) = CardVisualStyles.AvatarColor(assignee.UserName ?? assignee.Email ?? assignee.Id);
-                            <span class="assignee-pill">
-                                <span class="assignee-pill-avatar" style="background-color:@bg;color:@fg">@Initials(assignee)</span>
-                                @(assignee.UserName ?? assignee.Email)
-                                <button type="button" class="pill-remove" @onclick="() => RemoveAssignee(assignee.Id)">&times;</button>
-                            </span>
-                        }
-                    </div>
-                    <MudSelect T="string" Value="selectedAssigneeId" ValueChanged="AddAssignee" Placeholder="Assign someone..."
-                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control">
-                        @foreach (var member in boardMembers.Where(m => !cardAssignees.Any(a => a.Id == m.UserId)))
-                        {
-                            <MudSelectItem T="string" Value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</MudSelectItem>
-                        }
-                    </MudSelect>
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Dev reference link</MudText>
-                    @if (editingDevReferenceUrl)
-                    {
-                        <MudTextField @bind-Value="devReferenceUrl" Immediate="true" OnBlur="SaveDevReferenceUrl" Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" Placeholder="https://github.com/org/repo/pull/1" AutoFocus="true" FullWidth="true" />
-                    }
-                    else if (!string.IsNullOrWhiteSpace(devReferenceUrl))
-                    {
-                        <p class="link-text" @onclick="() => editingDevReferenceUrl = true">
-                            <a href="@devReferenceUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@DevLinkStyles.ProviderIcon(devReferenceUrl) @devReferenceUrl</a>
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="description-placeholder" @onclick="() => editingDevReferenceUrl = true">Add a GitHub PR or Azure DevOps PBI link...</p>
-                    }
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Ticket link</MudText>
-                    @if (editingTicketUrl)
-                    {
-                        <MudTextField @bind-Value="ticketUrl" Immediate="true" OnBlur="SaveTicketUrl" Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" Placeholder="https://example.atlassian.net/browse/PROJ-1" AutoFocus="true" FullWidth="true" />
-                    }
-                    else if (!string.IsNullOrWhiteSpace(ticketUrl))
-                    {
-                        <p class="link-text" @onclick="() => editingTicketUrl = true">
-                            <a href="@ticketUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">🔗 @ticketUrl</a>
-                        </p>
-                    }
-                    else
-                    {
-                        <p class="description-placeholder" @onclick="() => editingTicketUrl = true">Add a ticket system link...</p>
-                    }
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Time tracking</MudText>
-                    <div class="prop-row mb-2">
-                        <MudNumericField T="decimal?" @bind-Value="estimatedHours" Immediate="true" OnBlur="SaveEstimatedHours"
-                                         Label="Estimate (hours)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
-                        <MudText Class="text-ink-muted self-center">Logged: @loggedHours.ToString("0.##")h</MudText>
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Labels</MudText>
+                        <div class="pill-flow">
+                            @foreach (var label in cardLabels)
+                            {
+                                <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">
+                                    @label.Name
+                                    <button type="button" class="pill-remove" @onclick="() => RemoveLabel(label.Id)">&times;</button>
+                                </span>
+                            }
+                            @foreach (var label in boardLabels.Where(l => !cardLabels.Any(cl => cl.Id == l.Id)))
+                            {
+                                <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{label.Color};color:{label.Color}")" OnClick="() => AddLabel(label.Id)">+ @label.Name</MudChip>
+                            }
+                        </div>
                     </div>
 
-                    <div class="mb-3 flex flex-col gap-2">
-                        @foreach (var entry in timeLogEntries)
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Projects</MudText>
+                        <div class="pill-flow">
+                            @foreach (var project in cardProjects)
+                            {
+                                <span class="project-pill" style="background-color:@project.Color;color:@CardVisualStyles.ContrastText(project.Color)">
+                                    📁 @project.Name
+                                    <button type="button" class="pill-remove" @onclick="() => RemoveProject(project.Id)">&times;</button>
+                                </span>
+                            }
+                            @foreach (var project in allProjects.Where(p => !cardProjects.Any(cp => cp.Id == p.Id)))
+                            {
+                                <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{project.Color};color:{project.Color}")" OnClick="() => AddProject(project.Id)">+ 📁 @project.Name</MudChip>
+                            }
+                        </div>
+
+                        <MudLink Href="/projects" Target="_blank" Class="mt-2 inline-block" Underline="Underline.Hover">Manage projects</MudLink>
+                    </div>
+
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Assignees</MudText>
+                        <div class="pill-flow mb-2">
+                            @foreach (var assignee in cardAssignees)
+                            {
+                                var (bg, fg) = CardVisualStyles.AvatarColor(assignee.UserName ?? assignee.Email ?? assignee.Id);
+                                <span class="assignee-pill">
+                                    <span class="assignee-pill-avatar" style="background-color:@bg;color:@fg">@Initials(assignee)</span>
+                                    @(assignee.UserName ?? assignee.Email)
+                                    <button type="button" class="pill-remove" @onclick="() => RemoveAssignee(assignee.Id)">&times;</button>
+                                </span>
+                            }
+                        </div>
+                        <MudSelect T="string" Value="selectedAssigneeId" ValueChanged="AddAssignee" Placeholder="Assign someone..."
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control">
+                            @foreach (var member in boardMembers.Where(m => !cardAssignees.Any(a => a.Id == m.UserId)))
+                            {
+                                <MudSelectItem T="string" Value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+
+                    <div class="section-block">
+                        <div class="section-header">
+                            <MudText Typo="Typo.subtitle2">Description</MudText>
+                            @if (!editingDescription)
+                            {
+                                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => editingDescription = true">Edit</MudButton>
+                            }
+                        </div>
+                        @if (editingDescription)
                         {
-                            <div class="time-entry-row">
-                                @if (editingTimeEntryId == entry.Id)
-                                {
-                                    <MudDatePicker Date="editingEntryDate" DateChanged="d => editingEntryDate = d" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
-                                    <MudNumericField T="decimal?" @bind-Value="editingEntryHours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Placeholder="Hours" Min="0" />
-                                    <MudTextField @bind-Value="editingEntryNote" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Note (optional)" FullWidth="true" />
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveTimeEntryEdit(entry.Id)">Save</MudButton>
-                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEditingTimeEntry">Cancel</MudButton>
-                                }
-                                else
-                                {
-                                    <span class="time-entry-summary">
-                                        <strong>@entry.DurationHours.ToString("0.##")h</strong> on @entry.Date.ToShortDateString()
-                                        @if (!string.IsNullOrWhiteSpace(entry.Note))
-                                        {
-                                            <span class="text-ink-muted"> &mdash; @entry.Note</span>
-                                        }
-                                    </span>
-                                    @if (entry.UserId == userId)
-                                    {
-                                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartEditingTimeEntry(entry)">Edit</MudButton>
-                                    }
-                                    @if (entry.UserId == userId || isOwner)
-                                    {
-                                        <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteTimeEntry(entry.Id)">Delete</MudButton>
-                                    }
-                                }
+                            <MudTextField @bind-Value="description" Immediate="true" OnBlur="HandleDescriptionBlur" Variant="Variant.Outlined"
+                                          Placeholder="Add a more detailed description..." Lines="4" FullWidth="true" AutoFocus="true" />
+                        }
+                        else if (!string.IsNullOrWhiteSpace(description))
+                        {
+                            <p class="description-text" @onclick="() => editingDescription = true">@description</p>
+                        }
+                        else
+                        {
+                            <p class="description-placeholder" @onclick="() => editingDescription = true">Add a more detailed description...</p>
+                        }
+                    </div>
+
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Checklist (@checklistDoneCount/@checklistItems.Count)</MudText>
+                        @if (checklistItems.Count > 0)
+                        {
+                            <div class="checklist-progress">
+                                <div class="checklist-progress-fill" style="width:@(checklistItems.Count == 0 ? 0 : checklistDoneCount * 100 / checklistItems.Count)%"></div>
                             </div>
                         }
-                    </div>
-
-                    <div class="flex flex-wrap gap-2 items-end">
-                        <MudDatePicker Date="newEntryDate" DateChanged="d => newEntryDate = d" Label="Date" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
-                        <MudNumericField T="decimal?" @bind-Value="newEntryHours" Label="Hours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
-                        <MudTextField @bind-Value="newEntryNote" Placeholder="Note (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddTimeEntry" Disabled="@(newEntryHours is not > 0 || !newEntryDate.HasValue)">Log time</MudButton>
-                    </div>
-                </div>
-
-                @if (parentCardId.HasValue)
-                {
-                    <div class="section-block">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">Parent card</MudText>
-                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="() => NavigateToCard(parentCardId.Value)">@(parentCardTitle ?? $"Card #{parentCardId}")</MudButton>
-                    </div>
-                }
-                else
-                {
-                    <div class="section-block">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">Sub-cards (@subCards.Count)</MudText>
-                        <div class="mb-2 flex flex-col gap-1">
-                            @foreach (var sub in subCards)
+                        <div class="mb-2 mt-2 flex flex-col gap-1">
+                            @foreach (var item in checklistItems.OrderBy(i => i.Position))
                             {
-                                <div class="sub-card-row">
-                                    <span class="@(sub.State == CardState.Done ? "done" : "")">@sub.Title</span>
-                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => NavigateToCard(sub.Id)">Open</MudButton>
+                                <div class="checklist-item" draggable="true" @key="item.Id"
+                                     @ondragstart="() => HandleChecklistDragStart(item)"
+                                     @ondragover="(DragEventArgs _) => { }" @ondragover:preventDefault="true"
+                                     @ondrop="() => HandleChecklistDrop(item)">
+                                    <MudCheckBox T="bool" Value="item.IsDone" ValueChanged="@(v => ToggleChecklistItem(item.Id, v))" Dense="true" />
+
+                                    @if (editingChecklistItemId == item.Id)
+                                    {
+                                        <MudTextField @bind-Value="editingChecklistItemText" Immediate="true" OnBlur="() => SaveChecklistItemEdit(item.Id)" Variant="Variant.Text" Class="flex-1" AutoFocus="true" />
+                                    }
+                                    else
+                                    {
+                                        <span class="checklist-item-text @(item.IsDone ? "done" : "")" @onclick="() => StartChecklistItemEdit(item)">@item.Text</span>
+                                    }
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteChecklistItem(item.Id)" />
                                 </div>
                             }
                         </div>
                         <div class="flex gap-2">
-                            <MudTextField @bind-Value="newSubCardTitle" Placeholder="New sub-card title" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateSubCard" Disabled="@string.IsNullOrWhiteSpace(newSubCardTitle)">Add sub-card</MudButton>
+                            <MudTextField @bind-Value="newChecklistItemText" Immediate="true" Placeholder="Add checklist item" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" FullWidth="true" OnKeyDown="HandleChecklistItemKeyDown" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddChecklistItem" Disabled="@string.IsNullOrWhiteSpace(newChecklistItemText)">Add</MudButton>
                         </div>
                     </div>
-                }
 
-                <div class="section-block">
-                    <div class="section-header">
-                        <MudText Typo="Typo.subtitle2">Description</MudText>
-                        @if (!editingDescription)
-                        {
-                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => editingDescription = true">Edit</MudButton>
-                        }
-                    </div>
-                    @if (editingDescription)
+                    @if (parentCardId.HasValue)
                     {
-                        <MudTextField @bind-Value="description" Immediate="true" OnBlur="HandleDescriptionBlur" Variant="Variant.Outlined"
-                                      Placeholder="Add a more detailed description..." Lines="4" FullWidth="true" AutoFocus="true" />
-                    }
-                    else if (!string.IsNullOrWhiteSpace(description))
-                    {
-                        <p class="description-text" @onclick="() => editingDescription = true">@description</p>
+                        <div class="section-block">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Parent card</MudText>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="() => NavigateToCard(parentCardId.Value)">@(parentCardTitle ?? $"Card #{parentCardId}")</MudButton>
+                        </div>
                     }
                     else
                     {
-                        <p class="description-placeholder" @onclick="() => editingDescription = true">Add a more detailed description...</p>
-                    }
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-1">Checklist (@checklistDoneCount/@checklistItems.Count)</MudText>
-                    @if (checklistItems.Count > 0)
-                    {
-                        <div class="checklist-progress">
-                            <div class="checklist-progress-fill" style="width:@(checklistItems.Count == 0 ? 0 : checklistDoneCount * 100 / checklistItems.Count)%"></div>
+                        <div class="section-block">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Sub-cards (@subCards.Count)</MudText>
+                            <div class="mb-2 flex flex-col gap-1">
+                                @foreach (var sub in subCards)
+                                {
+                                    <div class="sub-card-row">
+                                        <span class="@(sub.State == CardState.Done ? "done" : "")">@sub.Title</span>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => NavigateToCard(sub.Id)">Open</MudButton>
+                                    </div>
+                                }
+                            </div>
+                            <div class="flex gap-2">
+                                <MudTextField @bind-Value="newSubCardTitle" Placeholder="New sub-card title" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateSubCard" Disabled="@string.IsNullOrWhiteSpace(newSubCardTitle)">Add sub-card</MudButton>
+                            </div>
                         </div>
                     }
-                    <div class="mb-2 mt-2 flex flex-col gap-1">
-                        @foreach (var item in checklistItems.OrderBy(i => i.Position))
+
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Dev reference link</MudText>
+                        @if (editingDevReferenceUrl)
                         {
-                            <div class="checklist-item" draggable="true" @key="item.Id"
-                                 @ondragstart="() => HandleChecklistDragStart(item)"
-                                 @ondragover="(DragEventArgs _) => { }" @ondragover:preventDefault="true"
-                                 @ondrop="() => HandleChecklistDrop(item)">
-                                <MudCheckBox T="bool" Value="item.IsDone" ValueChanged="@(v => ToggleChecklistItem(item.Id, v))" Dense="true" />
-
-                                @if (editingChecklistItemId == item.Id)
-                                {
-                                    <MudTextField @bind-Value="editingChecklistItemText" Immediate="true" OnBlur="() => SaveChecklistItemEdit(item.Id)" Variant="Variant.Text" Class="flex-1" AutoFocus="true" />
-                                }
-                                else
-                                {
-                                    <span class="checklist-item-text @(item.IsDone ? "done" : "")" @onclick="() => StartChecklistItemEdit(item)">@item.Text</span>
-                                }
-
-                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteChecklistItem(item.Id)" />
-                            </div>
+                            <MudTextField @bind-Value="devReferenceUrl" Immediate="true" OnBlur="SaveDevReferenceUrl" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="https://github.com/org/repo/pull/1" AutoFocus="true" FullWidth="true" />
+                        }
+                        else if (!string.IsNullOrWhiteSpace(devReferenceUrl))
+                        {
+                            <p class="link-text" @onclick="() => editingDevReferenceUrl = true">
+                                <a href="@devReferenceUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@DevLinkStyles.ProviderIcon(devReferenceUrl) @devReferenceUrl</a>
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="description-placeholder" @onclick="() => editingDevReferenceUrl = true">Add a GitHub PR or Azure DevOps PBI link...</p>
                         }
                     </div>
-                    <div class="flex gap-2">
-                        <MudTextField @bind-Value="newChecklistItemText" Immediate="true" Placeholder="Add checklist item" Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" FullWidth="true" OnKeyDown="HandleChecklistItemKeyDown" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddChecklistItem" Disabled="@string.IsNullOrWhiteSpace(newChecklistItemText)">Add</MudButton>
-                    </div>
-                </div>
 
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Comments (@comments.Count)</MudText>
-                    <div class="mb-3 flex flex-col gap-3">
-                        @foreach (var comment in comments)
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Ticket link</MudText>
+                        @if (editingTicketUrl)
                         {
-                            <div class="comment">
-                                <div class="mb-1 flex items-baseline gap-2 text-xs text-ink-muted">
-                                    <strong class="text-ink">@AuthorName(comment.AuthorId)</strong>
-                                    <span>@comment.CreatedAt.ToLocalTime().ToString("g")</span>
-                                    @if (comment.UpdatedAt > comment.CreatedAt)
+                            <MudTextField @bind-Value="ticketUrl" Immediate="true" OnBlur="SaveTicketUrl" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Placeholder="https://example.atlassian.net/browse/PROJ-1" AutoFocus="true" FullWidth="true" />
+                        }
+                        else if (!string.IsNullOrWhiteSpace(ticketUrl))
+                        {
+                            <p class="link-text" @onclick="() => editingTicketUrl = true">
+                                <a href="@ticketUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">🔗 @ticketUrl</a>
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="description-placeholder" @onclick="() => editingTicketUrl = true">Add a ticket system link...</p>
+                        }
+                    </div>
+
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Attachments (@attachments.Count)</MudText>
+                        <div class="mb-2 flex flex-col gap-2">
+                            @foreach (var attachment in attachments)
+                            {
+                                <div class="attachment-row">
+                                    <MudLink Href="@DownloadUrl(attachment.Id)" Target="_blank" Class="font-semibold">@attachment.FileName</MudLink>
+                                    <span class="flex-1 text-xs text-ink-muted">@FormatSize(attachment.SizeBytes) &middot; @AuthorName(attachment.UploadedByUserId) &middot; @attachment.CreatedAt.ToLocalTime().ToString("g")</span>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteAttachment(attachment.Id)" />
+                                </div>
+                            }
+                        </div>
+
+                        <InputFile OnChange="HandleFileSelected"
+                                   class="block w-full text-sm text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-ink hover:file:bg-surface-hover" />
+                        @if (!string.IsNullOrEmpty(uploadError))
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@uploadError</MudAlert>
+                        }
+                    </div>
+
+                    <div class="section-block">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Time tracking</MudText>
+                        <div class="prop-row mb-2">
+                            <MudNumericField T="decimal?" @bind-Value="estimatedHours" Immediate="true" OnBlur="SaveEstimatedHours"
+                                             Label="Estimate (hours)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
+                            <MudText Class="text-ink-muted self-center">Logged: @loggedHours.ToString("0.##")h</MudText>
+                        </div>
+
+                        <div class="mb-3 flex flex-col gap-2">
+                            @foreach (var entry in timeLogEntries)
+                            {
+                                <div class="time-entry-row">
+                                    @if (editingTimeEntryId == entry.Id)
                                     {
-                                        <span class="italic">(edited)</span>
+                                        <MudDatePicker Date="editingEntryDate" DateChanged="d => editingEntryDate = d" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
+                                        <MudNumericField T="decimal?" @bind-Value="editingEntryHours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Placeholder="Hours" Min="0" />
+                                        <MudTextField @bind-Value="editingEntryNote" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Note (optional)" FullWidth="true" />
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveTimeEntryEdit(entry.Id)">Save</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEditingTimeEntry">Cancel</MudButton>
+                                    }
+                                    else
+                                    {
+                                        <span class="time-entry-summary">
+                                            <strong>@entry.DurationHours.ToString("0.##")h</strong> on @entry.Date.ToShortDateString()
+                                            @if (!string.IsNullOrWhiteSpace(entry.Note))
+                                            {
+                                                <span class="text-ink-muted"> &mdash; @entry.Note</span>
+                                            }
+                                        </span>
+                                        @if (entry.UserId == userId)
+                                        {
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartEditingTimeEntry(entry)">Edit</MudButton>
+                                        }
+                                        @if (entry.UserId == userId || isOwner)
+                                        {
+                                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteTimeEntry(entry.Id)">Delete</MudButton>
+                                        }
                                     }
                                 </div>
+                            }
+                        </div>
 
-                                @if (editingCommentId == comment.Id)
-                                {
-                                    <MudTextField @bind-Value="editingCommentText" Immediate="true" OnBlur="() => SaveCommentEdit(comment.Id)" Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" AutoFocus="true" />
-                                    <div class="flex gap-2">
-                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveCommentEdit(comment.Id)">Save</MudButton>
-                                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelCommentEdit">Cancel</MudButton>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <p class="comment-text">@comment.Text</p>
-                                    <div class="flex gap-2">
-                                        @if (comment.AuthorId == userId)
-                                        {
-                                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartCommentEdit(comment)">Edit</MudButton>
-                                        }
-                                        @if (comment.AuthorId == userId || isOwner)
-                                        {
-                                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteComment(comment.Id)">Delete</MudButton>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
+                        <div class="flex flex-wrap gap-2 items-end">
+                            <MudDatePicker Date="newEntryDate" DateChanged="d => newEntryDate = d" Label="Date" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
+                            <MudNumericField T="decimal?" @bind-Value="newEntryHours" Label="Hours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
+                            <MudTextField @bind-Value="newEntryNote" Placeholder="Note (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddTimeEntry" Disabled="@(newEntryHours is not > 0 || !newEntryDate.HasValue)">Log time</MudButton>
+                        </div>
                     </div>
-
-                    <MudTextField @bind-Value="newCommentText" Placeholder="Write a comment..." Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="PostComment" Disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</MudButton>
                 </div>
 
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Attachments (@attachments.Count)</MudText>
-                    <div class="mb-2 flex flex-col gap-2">
-                        @foreach (var attachment in attachments)
-                        {
-                            <div class="attachment-row">
-                                <MudLink Href="@DownloadUrl(attachment.Id)" Target="_blank" Class="font-semibold">@attachment.FileName</MudLink>
-                                <span class="flex-1 text-xs text-ink-muted">@FormatSize(attachment.SizeBytes) &middot; @AuthorName(attachment.UploadedByUserId) &middot; @attachment.CreatedAt.ToLocalTime().ToString("g")</span>
-                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="text-ink-faint p-1" OnClick="() => DeleteAttachment(attachment.Id)" />
-                            </div>
-                        }
-                    </div>
+                <div class="card-dialog-right">
+                    <MudTabs Class="card-dialog-tabs" TabPanelsClass="card-dialog-tab-panel">
+                        <MudTabPanel Text="Discussion">
+                            <div class="mb-3 flex flex-col gap-3">
+                                @foreach (var comment in comments)
+                                {
+                                    <div class="comment">
+                                        <div class="mb-1 flex items-baseline gap-2 text-xs text-ink-muted">
+                                            <strong class="text-ink">@AuthorName(comment.AuthorId)</strong>
+                                            <span>@comment.CreatedAt.ToLocalTime().ToString("g")</span>
+                                            @if (comment.UpdatedAt > comment.CreatedAt)
+                                            {
+                                                <span class="italic">(edited)</span>
+                                            }
+                                        </div>
 
-                    <InputFile OnChange="HandleFileSelected"
-                               class="block w-full text-sm text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-ink hover:file:bg-surface-hover" />
-                    @if (!string.IsNullOrEmpty(uploadError))
-                    {
-                        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@uploadError</MudAlert>
-                    }
-                </div>
-
-                <div class="section-block">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Activity</MudText>
-                    <div class="activity-list">
-                        @foreach (var entry in activityLog)
-                        {
-                            <div class="activity-entry">
-                                <span>@FormatActivity(entry)</span>
-                                <span class="whitespace-nowrap text-ink-faint">@entry.CreatedAt.ToLocalTime().ToString("g")</span>
+                                        @if (editingCommentId == comment.Id)
+                                        {
+                                            <MudTextField @bind-Value="editingCommentText" Immediate="true" OnBlur="() => SaveCommentEdit(comment.Id)" Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" AutoFocus="true" />
+                                            <div class="flex gap-2">
+                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveCommentEdit(comment.Id)">Save</MudButton>
+                                                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelCommentEdit">Cancel</MudButton>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="comment-text">@comment.Text</p>
+                                            <div class="flex gap-2">
+                                                @if (comment.AuthorId == userId)
+                                                {
+                                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => StartCommentEdit(comment)">Edit</MudButton>
+                                                }
+                                                @if (comment.AuthorId == userId || isOwner)
+                                                {
+                                                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteComment(comment.Id)">Delete</MudButton>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             </div>
-                        }
-                    </div>
+
+                            <MudTextField @bind-Value="newCommentText" Placeholder="Write a comment..." Variant="Variant.Outlined" Lines="2" FullWidth="true" Class="mb-2" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="PostComment" Disabled="@string.IsNullOrWhiteSpace(newCommentText)">Post comment</MudButton>
+                        </MudTabPanel>
+                        <MudTabPanel Text="Activity">
+                            <div class="activity-list">
+                                @foreach (var entry in activityLog)
+                                {
+                                    <div class="activity-entry">
+                                        <span>@FormatActivity(entry)</span>
+                                        <span class="whitespace-nowrap text-ink-faint">@entry.CreatedAt.ToLocalTime().ToString("g")</span>
+                                    </div>
+                                }
+                            </div>
+                        </MudTabPanel>
+                    </MudTabs>
                 </div>
             </div>
         }
@@ -409,10 +412,46 @@
         padding-left: 0;
     }
 
-    .card-dialog-body {
+    .card-dialog-columns {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+    }
+
+    .card-dialog-left {
+        flex: 1 1 auto;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         gap: 20px;
+    }
+
+    .card-dialog-right {
+        flex: 0 0 380px;
+        min-width: 0;
+    }
+
+    .card-dialog-tabs {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-dialog-tab-panel {
+        max-height: 70vh;
+        overflow-y: auto;
+        padding-top: 12px;
+    }
+
+    @@media (max-width: 900px) {
+        .card-dialog-columns {
+            flex-direction: column;
+        }
+
+        .card-dialog-right {
+            flex: 1 1 auto;
+            width: 100%;
+        }
     }
 
     .prop-row {
@@ -653,7 +692,7 @@
 
     private readonly DialogOptions dialogOptions = new()
     {
-        MaxWidth = MaxWidth.Medium,
+        MaxWidth = MaxWidth.ExtraLarge,
         FullWidth = true,
         NoHeader = true,
         CloseOnEscapeKey = false,

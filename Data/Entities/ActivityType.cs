@@ -20,5 +20,7 @@ public enum ActivityType
     AttachmentAdded,
     AttachmentDeleted,
     PriorityChanged,
-    StateChanged
+    StateChanged,
+    ProjectAdded,
+    ProjectRemoved
 }

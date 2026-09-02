@@ -13,6 +13,8 @@ public interface IBoardSyncService
     Task BroadcastCardPriorityChangedAsync(int boardId, int cardId, CardPriority? priority);
     Task BroadcastCardStateChangedAsync(int boardId, int cardId, CardState state);
     Task BroadcastCardTypeChangedAsync(int boardId, int cardId, CardType? type);
+    Task BroadcastCardDevReferenceUrlChangedAsync(int boardId, int cardId, string? url);
+    Task BroadcastCardTicketUrlChangedAsync(int boardId, int cardId, string? url);
     Task BroadcastListCreatedAsync(int boardId, int listId, string name);
     Task BroadcastListUpdatedAsync(int boardId, int listId, string name);
     Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions);
@@ -23,6 +25,9 @@ public interface IBoardSyncService
     Task BroadcastLabelRemovedAsync(int boardId, int cardId, int labelId);
     Task BroadcastLabelCreatedAsync(int boardId, int labelId, string name, string color);
     Task BroadcastLabelDeletedAsync(int boardId, int labelId);
+    Task BroadcastProjectCreatedAsync(int boardId, int projectId, string name, string color);
+    Task BroadcastProjectAddedAsync(int boardId, int cardId, int projectId);
+    Task BroadcastProjectRemovedAsync(int boardId, int cardId, int projectId);
     Task BroadcastCommentAddedAsync(int boardId, int cardId, int commentId, string authorId, string text, DateTime createdAt);
     Task BroadcastCommentUpdatedAsync(int boardId, int cardId, int commentId, string text, DateTime updatedAt);
     Task BroadcastCommentDeletedAsync(int boardId, int cardId, int commentId);
@@ -77,6 +82,18 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("CardTypeChanged", new { cardId, type, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardDevReferenceUrlChangedAsync(int boardId, int cardId, string? url)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardDevReferenceUrlChanged", new { cardId, url, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastCardTicketUrlChangedAsync(int boardId, int cardId, string? url)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("CardTicketUrlChanged", new { cardId, url, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastListCreatedAsync(int boardId, int listId, string name)
@@ -137,6 +154,24 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("LabelDeleted", new { labelId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastProjectCreatedAsync(int boardId, int projectId, string name, string color)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ProjectCreated", new { projectId, name, color, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastProjectAddedAsync(int boardId, int cardId, int projectId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ProjectAdded", new { cardId, projectId, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastProjectRemovedAsync(int boardId, int cardId, int projectId)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ProjectRemoved", new { cardId, projectId, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastCommentAddedAsync(int boardId, int cardId, int commentId, string authorId, string text, DateTime createdAt)

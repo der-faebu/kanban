@@ -495,6 +495,128 @@ public class CardTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task SetDevReferenceUrl_ReturnsOk_AndPersistsUrl()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardDevReferenceUrlRequest { Url = "https://github.com/acme/repo/pull/42" };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/dev-link", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Equal("https://github.com/acme/repo/pull/42", card2!.DevReferenceUrl);
+    }
+
+    [Fact]
+    public async Task SetDevReferenceUrl_Clear_SetsUrlToNull()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, DevReferenceUrl = "https://github.com/acme/repo/pull/42" };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardDevReferenceUrlRequest { Url = null };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/dev-link", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Null(card2!.DevReferenceUrl);
+    }
+
+    [Fact]
+    public async Task SetTicketUrl_ReturnsOk_AndPersistsUrl()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardTicketUrlRequest { Url = "https://acme.atlassian.net/browse/PROJ-123" };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/ticket-link", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Equal("https://acme.atlassian.net/browse/PROJ-123", card2!.TicketUrl);
+    }
+
+    [Fact]
+    public async Task SetTicketUrl_Clear_SetsUrlToNull()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, TicketUrl = "https://acme.atlassian.net/browse/PROJ-123" };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        var request = new SetCardTicketUrlRequest { Url = "" };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/ticket-link", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var getResponse = await _client.GetAsync($"/api/lists/{_listId}/cards/{cardId}");
+        var card2 = await getResponse.Content.ReadFromJsonAsync<Card>();
+        Assert.Null(card2!.TicketUrl);
+    }
+
+    [Fact]
+    public async Task SetDevReferenceUrl_AsNonBoardMember_IsRejected()
+    {
+        var otherUserId = await CreateOtherUserAsync();
+        int cardId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+        }
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(otherUserId));
+
+        var request = new SetCardDevReferenceUrlRequest { Url = "https://github.com/acme/repo/pull/42" };
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/dev-link", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private async Task<string> CreateOtherUserAsync()
     {
         var otherUserId = Guid.NewGuid().ToString();

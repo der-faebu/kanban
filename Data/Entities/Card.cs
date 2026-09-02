@@ -12,10 +12,13 @@ public class Card
     public CardPriority? Priority { get; set; }
     public CardState State { get; set; } = CardState.NotStarted;
     public CardType? Type { get; set; }
+    public string? DevReferenceUrl { get; set; }
+    public string? TicketUrl { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<CardAssignee> Assignees { get; set; } = [];
     public ICollection<CardLabel> Labels { get; set; } = [];
+    public ICollection<CardProject> Projects { get; set; } = [];
 }

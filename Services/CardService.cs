@@ -13,6 +13,8 @@ public interface ICardService
     Task SetCardPriorityAsync(int cardId, string userId, CardPriority? priority);
     Task SetCardStateAsync(int cardId, string userId, CardState state);
     Task SetCardTypeAsync(int cardId, string userId, CardType? type);
+    Task SetDevReferenceUrlAsync(int cardId, string userId, string? url);
+    Task SetTicketUrlAsync(int cardId, string userId, string? url);
     Task MoveCardAsync(int cardId, string userId, int targetListId, int position);
     Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions);
     Task SoftDeleteCardAsync(int cardId, string userId);
@@ -23,6 +25,9 @@ public interface ICardService
     Task AddLabelAsync(int cardId, string userId, int labelId);
     Task RemoveLabelAsync(int cardId, string userId, int labelId);
     Task<List<Label>> GetCardLabelsAsync(int cardId, string userId);
+    Task AddProjectAsync(int cardId, string userId, int projectId);
+    Task RemoveProjectAsync(int cardId, string userId, int projectId);
+    Task<List<Project>> GetCardProjectsAsync(int cardId, string userId);
 }
 
 public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory, IListService listService, IBoardSyncService boardSyncService, IActivityLogService activityLogService) : ICardService
@@ -181,6 +186,44 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastCardTypeChangedAsync(boardId, cardId, type);
+    }
+
+    public async Task SetDevReferenceUrlAsync(int cardId, string userId, string? url)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = card.List.BoardId;
+        card.DevReferenceUrl = string.IsNullOrWhiteSpace(url) ? null : url;
+        card.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardDevReferenceUrlChangedAsync(boardId, cardId, card.DevReferenceUrl);
+    }
+
+    public async Task SetTicketUrlAsync(int cardId, string userId, string? url)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = card.List.BoardId;
+        card.TicketUrl = string.IsNullOrWhiteSpace(url) ? null : url;
+        card.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastCardTicketUrlChangedAsync(boardId, cardId, card.TicketUrl);
     }
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)
@@ -433,6 +476,81 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         return await context.CardLabels
             .Where(cl => cl.CardId == cardId)
             .Select(cl => cl.Label!)
+            .ToListAsync();
+    }
+
+    public async Task AddProjectAsync(int cardId, string userId, int projectId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var project = await context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
+        if (project == null)
+            throw new InvalidOperationException("Project not found");
+
+        var existing = await context.CardProjects.FirstOrDefaultAsync(cp => cp.CardId == cardId && cp.ProjectId == projectId);
+        if (existing != null)
+            return;
+
+        var boardId = card.List.BoardId;
+        var cardProject = new CardProject { CardId = cardId, ProjectId = projectId };
+        context.CardProjects.Add(cardProject);
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastProjectAddedAsync(boardId, cardId, projectId);
+
+        var metadata = new { projectId, projectName = project.Name };
+        await activityLogService.LogAsync(cardId, userId, ActivityType.ProjectAdded, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.ProjectAdded, userId, metadata, DateTime.UtcNow);
+    }
+
+    public async Task RemoveProjectAsync(int cardId, string userId, int projectId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = card.List.BoardId;
+        var cardProject = await context.CardProjects.FirstOrDefaultAsync(cp => cp.CardId == cardId && cp.ProjectId == projectId);
+        if (cardProject != null)
+        {
+            context.CardProjects.Remove(cardProject);
+            await context.SaveChangesAsync();
+            await boardSyncService.BroadcastProjectRemovedAsync(boardId, cardId, projectId);
+
+            var metadata = new { projectId };
+            await activityLogService.LogAsync(cardId, userId, ActivityType.ProjectRemoved, metadata);
+            await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.ProjectRemoved, userId, metadata, DateTime.UtcNow);
+        }
+    }
+
+    public async Task<List<Project>> GetCardProjectsAsync(int cardId, string userId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        return await context.CardProjects
+            .Where(cp => cp.CardId == cardId)
+            .Select(cp => cp.Project!)
             .ToListAsync();
     }
 }

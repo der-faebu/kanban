@@ -104,6 +104,36 @@
                 </div>
 
                 <div class="section-block">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Projects</MudText>
+                    <div class="pill-flow">
+                        @foreach (var project in cardProjects)
+                        {
+                            <span class="project-pill" style="background-color:@project.Color;color:@CardVisualStyles.ContrastText(project.Color)">
+                                📁 @project.Name
+                                <button type="button" class="pill-remove" @onclick="() => RemoveProject(project.Id)">&times;</button>
+                            </span>
+                        }
+                        @foreach (var project in allProjects.Where(p => !cardProjects.Any(cp => cp.Id == p.Id)))
+                        {
+                            <MudChip T="string" Variant="Variant.Outlined" Style="@($"border-color:{project.Color};color:{project.Color}")" OnClick="() => AddProject(project.Id)">+ 📁 @project.Name</MudChip>
+                        }
+                    </div>
+
+                    <div class="mt-3 flex flex-col gap-2">
+                        <MudTextField @bind-Value="newProjectName" Placeholder="New project name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var color in LabelSwatches.Colors)
+                            {
+                                <button type="button" class="swatch @(color == newProjectColor ? "selected" : "")"
+                                        style="background-color:@color" @onclick="() => newProjectColor = color"></button>
+                            }
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="CreateProject"
+                                   Disabled="@string.IsNullOrWhiteSpace(newProjectName)" Class="self-start">Create project</MudButton>
+                    </div>
+                </div>
+
+                <div class="section-block">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">Assignees</MudText>
                     <div class="pill-flow mb-2">
                         @foreach (var assignee in cardAssignees)
@@ -123,6 +153,44 @@
                             <MudSelectItem T="string" Value="@member.UserId">@(member.User?.UserName ?? member.User?.Email)</MudSelectItem>
                         }
                     </MudSelect>
+                </div>
+
+                <div class="section-block">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Dev reference link</MudText>
+                    @if (editingDevReferenceUrl)
+                    {
+                        <MudTextField @bind-Value="devReferenceUrl" Immediate="true" OnBlur="SaveDevReferenceUrl" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="https://github.com/org/repo/pull/1" AutoFocus="true" FullWidth="true" />
+                    }
+                    else if (!string.IsNullOrWhiteSpace(devReferenceUrl))
+                    {
+                        <p class="link-text" @onclick="() => editingDevReferenceUrl = true">
+                            <a href="@devReferenceUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@DevLinkStyles.ProviderIcon(devReferenceUrl) @devReferenceUrl</a>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="description-placeholder" @onclick="() => editingDevReferenceUrl = true">Add a GitHub PR or Azure DevOps PBI link...</p>
+                    }
+                </div>
+
+                <div class="section-block">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Ticket link</MudText>
+                    @if (editingTicketUrl)
+                    {
+                        <MudTextField @bind-Value="ticketUrl" Immediate="true" OnBlur="SaveTicketUrl" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Placeholder="https://example.atlassian.net/browse/PROJ-1" AutoFocus="true" FullWidth="true" />
+                    }
+                    else if (!string.IsNullOrWhiteSpace(ticketUrl))
+                    {
+                        <p class="link-text" @onclick="() => editingTicketUrl = true">
+                            <a href="@ticketUrl" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">🔗 @ticketUrl</a>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="description-placeholder" @onclick="() => editingTicketUrl = true">Add a ticket system link...</p>
+                    }
                 </div>
 
                 <div class="section-block">
@@ -333,7 +401,7 @@
         align-items: center;
     }
 
-    .label-pill {
+    .label-pill, .project-pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -400,6 +468,22 @@
     .description-placeholder {
         color: var(--knb-text-tertiary);
     }
+
+    .link-text {
+        margin: 0;
+        padding: 8px 10px;
+        border-radius: var(--knb-radius-md);
+        cursor: text;
+        word-break: break-all;
+    }
+
+        .link-text:hover {
+            background: var(--knb-bg-surface-hover);
+        }
+
+        .link-text a {
+            color: var(--knb-accent);
+        }
 
     .checklist-progress {
         height: 6px;
@@ -521,6 +605,9 @@
     private ILabelService LabelService { get; set; } = null!;
 
     [Inject]
+    private IProjectService ProjectService { get; set; } = null!;
+
+    [Inject]
     private IBoardService BoardService { get; set; } = null!;
 
     [Inject]
@@ -560,12 +647,20 @@
 
     private List<Label> cardLabels = [];
     private List<Label> boardLabels = [];
+    private List<Project> cardProjects = [];
+    private List<Project> allProjects = [];
     private List<ApplicationUser> cardAssignees = [];
     private List<BoardMember> boardMembers = [];
     private string? selectedAssigneeId;
 
     private string newLabelName = string.Empty;
     private string newLabelColor = LabelSwatches.Colors[0];
+    private string newProjectName = string.Empty;
+    private string newProjectColor = LabelSwatches.Colors[0];
+    private string devReferenceUrl = string.Empty;
+    private bool editingDevReferenceUrl = false;
+    private string ticketUrl = string.Empty;
+    private bool editingTicketUrl = false;
 
     private List<Comment> comments = [];
     private Dictionary<string, string> authorNames = new();
@@ -628,9 +723,13 @@
             priority = card.Priority;
             state = card.State;
             type = card.Type;
+            devReferenceUrl = card.DevReferenceUrl ?? string.Empty;
+            ticketUrl = card.TicketUrl ?? string.Empty;
 
             cardLabels = await CardService.GetCardLabelsAsync(CardId, userId);
             boardLabels = await LabelService.GetBoardLabelsAsync(BoardId, userId);
+            cardProjects = await CardService.GetCardProjectsAsync(CardId, userId);
+            allProjects = await ProjectService.GetAllProjectsAsync();
             cardAssignees = await CardService.GetCardAssigneesAsync(CardId, userId);
             boardMembers = await BoardService.GetBoardMembersAsync(BoardId, userId);
             isOwner = await BoardService.IsUserBoardOwnerAsync(BoardId, userId);
@@ -689,9 +788,13 @@
         hubConnection.On<JsonElement>("CardPriorityChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardStateChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardTypeChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardDevReferenceUrlChanged", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("CardTicketUrlChanged", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CardDeleted", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("LabelRemoved", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ProjectAdded", async data => await RefreshIfForThisCard(data));
+        hubConnection.On<JsonElement>("ProjectRemoved", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AssigneeAdded", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("AssigneeRemoved", async data => await RefreshIfForThisCard(data));
         hubConnection.On<JsonElement>("CommentAdded", async data => await RefreshIfForThisCard(data));
@@ -707,6 +810,7 @@
         // Label create/delete change the board-wide palette (no cardId on the payload), so always refresh.
         hubConnection.On<JsonElement>("LabelCreated", async _ => await Refresh());
         hubConnection.On<JsonElement>("LabelDeleted", async _ => await Refresh());
+        hubConnection.On<JsonElement>("ProjectCreated", async _ => await Refresh());
 
         try
         {
@@ -863,6 +967,82 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting label: {ex.Message}");
+        }
+    }
+
+    private async Task AddProject(int projectId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CardService.AddProjectAsync(CardId, userId, projectId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding project: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveProject(int projectId)
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        try
+        {
+            await CardService.RemoveProjectAsync(CardId, userId, projectId);
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing project: {ex.Message}");
+        }
+    }
+
+    private async Task CreateProject()
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(newProjectName)) return;
+        try
+        {
+            await ProjectService.CreateProjectAsync(BoardId, userId, newProjectName, newProjectColor);
+            newProjectName = string.Empty;
+            newProjectColor = LabelSwatches.Colors[0];
+            await LoadCardData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating project: {ex.Message}");
+        }
+    }
+
+    private async Task SaveDevReferenceUrl()
+    {
+        editingDevReferenceUrl = false;
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetDevReferenceUrlAsync(CardId, userId, devReferenceUrl);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating dev reference link: {ex.Message}");
+        }
+    }
+
+    private async Task SaveTicketUrl()
+    {
+        editingTicketUrl = false;
+        if (string.IsNullOrEmpty(userId) || !found)
+            return;
+
+        try
+        {
+            await CardService.SetTicketUrlAsync(CardId, userId, ticketUrl);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating ticket link: {ex.Message}");
         }
     }
 
@@ -1120,6 +1300,8 @@
             ActivityType.AttachmentDeleted => $"{actor} removed an attachment",
             ActivityType.PriorityChanged => string.IsNullOrEmpty(Get("priority")) ? $"{actor} cleared the priority" : $"{actor} set priority to {Get("priority")}",
             ActivityType.StateChanged => $"{actor} set state to {Get("state")}",
+            ActivityType.ProjectAdded => $"{actor} added project \"{Get("projectName")}\"",
+            ActivityType.ProjectRemoved => $"{actor} removed a project",
             _ => $"{actor} made a change"
         };
     }

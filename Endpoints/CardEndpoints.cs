@@ -73,6 +73,26 @@ public static class CardEndpoints
         cardGroup.MapGet("/{cardId}/labels", GetLabels)
             .Produces<List<object>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPost("/{cardId}/projects", AddProject)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        cardGroup.MapDelete("/{cardId}/projects/{projectId}", RemoveProject)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapGet("/{cardId}/projects", GetProjects)
+            .Produces<List<object>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPut("/{cardId}/dev-link", SetDevReferenceUrl)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        cardGroup.MapPut("/{cardId}/ticket-link", SetTicketUrl)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> CreateCard(HttpContext context, ICardService cardService, int listId, CreateCardRequest request)
@@ -343,6 +363,91 @@ public static class CardEndpoints
         catch (InvalidOperationException)
         {
             return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> AddProject(HttpContext context, ICardService cardService, int listId, int cardId, AddCardProjectRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.AddProjectAsync(cardId, userId, request.ProjectId);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> RemoveProject(HttpContext context, ICardService cardService, int listId, int cardId, int projectId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.RemoveProjectAsync(cardId, userId, projectId);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> GetProjects(HttpContext context, ICardService cardService, int listId, int cardId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var projects = await cardService.GetCardProjectsAsync(cardId, userId);
+            return Results.Ok(projects);
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> SetDevReferenceUrl(HttpContext context, ICardService cardService, int listId, int cardId, SetCardDevReferenceUrlRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.SetDevReferenceUrlAsync(cardId, userId, request.Url);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> SetTicketUrl(HttpContext context, ICardService cardService, int listId, int cardId, SetCardTicketUrlRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await cardService.SetTicketUrlAsync(cardId, userId, request.Url);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
         }
     }
 }

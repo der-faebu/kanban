@@ -13,6 +13,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardAssignee> CardAssignees => Set<CardAssignee>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<CardProject> CardProjects => Set<CardProject>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
@@ -97,6 +99,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasOne(cl => cl.Label)
             .WithMany(l => l.Cards)
             .HasForeignKey(cl => cl.LabelId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Card>()
+            .HasMany(c => c.Projects)
+            .WithOne(cp => cp.Card)
+            .HasForeignKey(cp => cp.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardProject>()
+            .HasKey(cp => new { cp.CardId, cp.ProjectId });
+
+        builder.Entity<CardProject>()
+            .HasOne(cp => cp.Project)
+            .WithMany(p => p.Cards)
+            .HasForeignKey(cp => cp.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<Comment>()

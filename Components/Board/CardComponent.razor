@@ -4,12 +4,16 @@
 
 <div class="card @(isDragging ? "dragging" : "")" draggable="true" @ondragstart="HandleDragStart" @ondragend="HandleDragEnd" @onclick="OpenCard">
     <div class="card-content">
-        @if (labels.Count > 0)
+        @if (labels.Count > 0 || projects.Count > 0)
         {
             <div class="label-row">
                 @foreach (var label in labels)
                 {
                     <span class="label-pill" style="background-color:@label.Color;color:@CardVisualStyles.ContrastText(label.Color)">@label.Name</span>
+                }
+                @foreach (var project in projects)
+                {
+                    <span class="project-pill" style="background-color:@project.Color;color:@CardVisualStyles.ContrastText(project.Color)">📁 @project.Name</span>
                 }
             </div>
         }
@@ -144,7 +148,7 @@
         margin-bottom: 6px;
     }
 
-    .label-pill {
+    .label-pill, .project-pill {
         display: inline-block;
         font-size: 10px;
         font-weight: 600;
@@ -247,6 +251,7 @@
 
     private string? userId;
     private List<Label> labels = [];
+    private List<Project> projects = [];
     private List<ApplicationUser> assignees = [];
     private int commentCount;
     private int checklistDone;
@@ -273,6 +278,7 @@
         try
         {
             labels = await CardService.GetCardLabelsAsync(Card.Id, userId);
+            projects = await CardService.GetCardProjectsAsync(Card.Id, userId);
             assignees = await CardService.GetCardAssigneesAsync(Card.Id, userId);
             commentCount = await CommentService.GetCardCommentCountAsync(Card.Id, userId);
             (checklistDone, checklistTotal) = await ChecklistService.GetChecklistProgressAsync(Card.Id, userId);

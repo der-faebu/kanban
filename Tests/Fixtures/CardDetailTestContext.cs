@@ -70,16 +70,20 @@ public class CardDetailTestContext : BunitContext, IAsyncLifetime
         Services.AddSingleton(_scope!.ServiceProvider.GetRequiredService<TService>());
 
     /// <summary>
-    /// Renders CardDetail the same way production does: mount a MudDialogProvider, then open the
-    /// dialog through IDialogService.ShowAsync (see BoardView.razor's OpenCardDialog), rather than
-    /// rendering CardDetail directly. CardDetail's own &lt;MudDialog&gt; only renders its content
-    /// when MudBlazor's *internal* dialog-instance cascading value is present (MudDialog.IsInline
-    /// = IsNested || DialogInstance is null) -- that type isn't public, so it can't be faked from
-    /// outside MudBlazor's assembly. Going through the real DialogService/MudDialogProvider gets
-    /// CardDetail the genuine cascading values it needs, without reaching into MudBlazor internals.
+    /// Renders CardDetail the same way production does: mount a MudDialogProvider (plus a
+    /// MudPopoverProvider, since MudBlazor 7+ portals all popover content -- including MudMenu's
+    /// dropdown lists -- into that provider rather than rendering it inline), then open the dialog
+    /// through IDialogService.ShowAsync (see BoardView.razor's OpenCardDialog and MainLayout.razor's
+    /// provider setup), rather than rendering CardDetail directly. CardDetail's own &lt;MudDialog&gt;
+    /// only renders its content when MudBlazor's *internal* dialog-instance cascading value is
+    /// present (MudDialog.IsInline = IsNested || DialogInstance is null) -- that type isn't public,
+    /// so it can't be faked from outside MudBlazor's assembly. Going through the real
+    /// DialogService/MudDialogProvider gets CardDetail the genuine cascading values it needs,
+    /// without reaching into MudBlazor internals.
     /// </summary>
     public async Task<IRenderedComponent<CardDetail>> RenderCardDetailAsync(int boardId, int cardId, string boardName)
     {
+        PopoverProvider = Render<MudPopoverProvider>();
         var provider = Render<MudDialogProvider>();
         var dialogService = Services.GetRequiredService<IDialogService>();
 
@@ -96,4 +100,12 @@ public class CardDetailTestContext : BunitContext, IAsyncLifetime
         provider.WaitForState(() => provider.FindComponents<CardDetail>().Count > 0, TimeSpan.FromSeconds(30));
         return provider.FindComponent<CardDetail>();
     }
+
+    /// <summary>
+    /// MudPopoverProvider portals all MudMenu dropdown content (and other popovers) into its own
+    /// separate render tree rather than nesting it under the activating component, so tests that
+    /// open a MudMenu must search here -- not on the CardDetail component returned by
+    /// RenderCardDetailAsync -- to find the popover's content. Set once RenderCardDetailAsync runs.
+    /// </summary>
+    public IRenderedComponent<MudPopoverProvider> PopoverProvider { get; private set; } = null!;
 }

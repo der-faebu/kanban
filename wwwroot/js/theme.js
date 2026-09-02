@@ -1,6 +1,7 @@
-// Companion to the blocking inline script in App.razor's <head>, which sets
-// data-theme synchronously before first paint using the same storage key and
-// fallback. These functions are for the interactive toggle, called via IJSRuntime.
+// Companion to the blocking inline script in App.razor's <head> (which also installs
+// the self-healing MutationObserver for data-theme). These two are for interactive
+// components' IJSRuntime calls: reading the current preference, and persisting +
+// applying a new one when the user actively toggles.
 window.knbGetTheme = function () {
     var stored = localStorage.getItem('knb-theme');
     return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');

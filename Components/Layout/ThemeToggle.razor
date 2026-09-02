@@ -13,6 +13,18 @@
         ThemeState.Changed += StateHasChanged;
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // This component gets its own circuit, separate from ThemeProviderHost's (see
+            // that component's comment) -- bootstrap from the real stored preference here too,
+            // so the icon/tooltip reflect reality instead of always assuming light on mount.
+            var theme = await JS.InvokeAsync<string>("knbGetTheme");
+            ThemeState.SetDarkMode(theme == "dark");
+        }
+    }
+
     private async Task Toggle()
     {
         var next = !ThemeState.IsDarkMode;

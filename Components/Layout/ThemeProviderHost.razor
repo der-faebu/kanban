@@ -16,9 +16,13 @@
     {
         if (firstRender)
         {
-            // The blocking inline script in App.razor's <head> already set data-theme
-            // synchronously before first paint; this just brings MudThemeProvider's
-            // IsDarkMode (only settable after the circuit connects) into agreement with it.
+            // Each @rendermode="InteractiveServer" root in MainLayout (this one, ThemeToggle,
+            // MudDialogProvider, ...) gets its own circuit rather than sharing one -- so
+            // ThemeState here is local to THIS instance, not shared with the toggle button's.
+            // Read the real preference from JS on every fresh mount instead of relying on
+            // another component's state. (The data-theme DOM attribute driving the app's own
+            // --knb-* CSS tokens is handled separately by the MutationObserver in App.razor;
+            // this only needs to bring MudThemeProvider's IsDarkMode into agreement.)
             var theme = await JS.InvokeAsync<string>("knbGetTheme");
             ThemeState.SetDarkMode(theme == "dark");
         }

@@ -10,9 +10,27 @@
         // applied, so data-theme is already correct on first paint -- no flash from
         // light to dark (or vice versa) once theme.css loads.
         (function () {
-            var stored = localStorage.getItem('knb-theme');
-            var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
+            function desiredTheme() {
+                var stored = localStorage.getItem('knb-theme');
+                return stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+
+            document.documentElement.setAttribute('data-theme', desiredTheme());
+
+            // Blazor Server's own DOM patching (observed when a MudDialog's interactive
+            // circuit initializes, e.g. opening a card) can reset <html>'s attributes to
+            // match its server-rendered markup, which never had data-theme -- the server
+            // has no way to know the client's localStorage choice. That happens beneath
+            // Blazor's component lifecycle (no OnAfterRender fires for it), so instead of
+            // chasing every place that might trigger it, this watches the attribute
+            // directly and reasserts it the instant something else touches it.
+            new MutationObserver(function () {
+                var current = document.documentElement.getAttribute('data-theme');
+                var desired = desiredTheme();
+                if (current !== desired) {
+                    document.documentElement.setAttribute('data-theme', desired);
+                }
+            }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         })();
     </script>
     <ResourcePreloader />

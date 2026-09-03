@@ -93,7 +93,11 @@ customElements.define('passkey-submit', class extends HTMLElement {
         const formData = new FormData();
         try {
             const credential = await this.obtainCredential(useConditionalMediation, signal);
-            const credentialJson = JSON.stringify(credential);
+            // Some browsers' PublicKeyCredential.toJSON() omits clientExtensionResults
+            // when no extensions were requested, but the server's model requires it.
+            const credentialForJson = credential.toJSON();
+            credentialForJson.clientExtensionResults ??= credential.getClientExtensionResults();
+            const credentialJson = JSON.stringify(credentialForJson);
             formData.append(`${this.attrs.name}.CredentialJson`, credentialJson);
         } catch (error) {
             if (error.name === 'AbortError') {

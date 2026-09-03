@@ -1,7 +1,21 @@
 html, body {
+    height: 100%;
     font-family: var(--knb-font-sans);
     background-color: var(--knb-bg-canvas);
     color: var(--knb-text-primary);
+}
+
+/*
+  The side drawer's toggle button lives in an interactive island (AppChrome)
+  separate from MudLayout, which is rendered statically so Identity pages can
+  stay static SSR. MudBlazor normally reserves space for the drawer by adding
+  a class to MudLayout itself, computed once at that static render and never
+  updated afterward -- so the reserved margin never shrinks back when the
+  drawer closes. Override it directly off the drawer's own class, which does
+  update live since it's inside the interactive island.
+*/
+.mud-layout:has(.mud-drawer.mud-drawer--closed) .mud-main-content {
+    margin-left: 0 !important;
 }
 
 a, .btn-link {

@@ -40,7 +40,6 @@ else
 
 <h4>Register a new passkey</h4>
 <EditForm Model="Input" FormName="add-passkey" OnSubmit="OnAddPasskeyAsync" method="post">
-    <AntiforgeryToken />
     <div class="auth-field">
         <label for="passkey-name">Passkey name</label>
         <input type="text" name="PasskeyName" value="@SubmittedPasskeyName" id="passkey-name" class="form-control" placeholder="e.g. My laptop" />

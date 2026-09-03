@@ -297,6 +297,32 @@ h1:focus {
     margin: 0 0 var(--knb-space-4);
 }
 
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--knb-space-4);
+}
+
+    .table td {
+        padding: var(--knb-space-2) var(--knb-space-3);
+        border-bottom: 1px solid var(--knb-border-subtle);
+        background-color: transparent;
+        color: var(--knb-text-primary);
+        vertical-align: middle;
+    }
+
+    .table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table td:first-child {
+        padding-left: 0;
+    }
+
+    .table td:last-child {
+        padding-right: 0;
+    }
+
 kbd {
     font-family: var(--knb-font-mono);
     background-color: var(--knb-bg-surface-3);

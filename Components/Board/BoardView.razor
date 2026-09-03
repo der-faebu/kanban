@@ -126,6 +126,7 @@ else
     private string? userId;
     private HubConnection? hubConnection;
     private int? openDialogForCardId;
+    private bool closingCardDialog;
     private readonly System.Collections.Generic.List<ToastMessage> toasts = [];
 
     private enum ToastKind { Success, Info, Danger }
@@ -175,6 +176,20 @@ else
         // with the renderer yet. Calling DialogService.ShowAsync that early throws
         // "The renderer does not have a component with ID N". OnAfterRenderAsync only
         // fires once the tree has actually rendered, so the provider is ready by then.
+        if (closingCardDialog)
+        {
+            // NavigateTo() below is dispatched asynchronously by the router, so the CardId
+            // parameter can still hold its old value for one or more renders after we've
+            // already closed the dialog for it (e.g. once LoadBoardData's StateHasChanged
+            // lands before the route change does). Ignore the stale CardId until the route
+            // actually catches up and clears it, otherwise we reopen the card we just closed.
+            if (!CardId.HasValue)
+            {
+                closingCardDialog = false;
+            }
+            return;
+        }
+
         if (CardId.HasValue && CardId != openDialogForCardId && board != null)
         {
             openDialogForCardId = CardId;
@@ -218,6 +233,7 @@ else
         openDialogForCardId = null;
         if (CardId.HasValue)
         {
+            closingCardDialog = true;
             NavigationManager.NavigateTo($"/board/{BoardId}", replace: true);
         }
         await LoadBoardData();

@@ -6,15 +6,7 @@
 <MudSnackbarProvider @rendermode="InteractiveServer" />
 
 <MudLayout>
-    <MudAppBar Elevation="0" Class="border-b border-line-subtle">
-        <MudText Typo="Typo.h6" Class="font-semibold">Kanban</MudText>
-        <MudSpacer />
-        <ThemeToggle @rendermode="InteractiveServer" />
-        <MudLink Href="https://learn.microsoft.com/aspnet/core/" Target="_blank" Class="text-ink-muted" Underline="Underline.Hover">About</MudLink>
-    </MudAppBar>
-    <MudDrawer Open="true" Elevation="0" Variant="DrawerVariant.Persistent" Class="border-r border-line-subtle">
-        <NavMenu />
-    </MudDrawer>
+    <AppChrome @rendermode="InteractiveServer" />
     <MudMainContent Class="px-8 pt-20 pb-6">
         @Body
     </MudMainContent>

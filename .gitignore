@@ -22,3 +22,6 @@ Thumbs.db
 
 ## Tailwind build tooling (wwwroot/tailwind.css output is committed; run `npm run build:css` after installing)
 /src/Kanban/node_modules/
+
+## AI stuff
+.claude/

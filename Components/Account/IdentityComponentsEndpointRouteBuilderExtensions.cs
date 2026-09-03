@@ -41,6 +41,37 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
             return TypedResults.Challenge(properties, [provider]);
         });
 
+        accountGroup.MapPost("/PasskeyCreationOptions", async (
+            HttpContext context,
+            [FromServices] UserManager<ApplicationUser> userManager,
+            [FromServices] SignInManager<ApplicationUser> signInManager) =>
+        {
+            var user = await userManager.GetUserAsync(context.User);
+            if (user is null)
+            {
+                return Results.NotFound();
+            }
+
+            var userId = await userManager.GetUserIdAsync(user);
+            var userName = await userManager.GetUserNameAsync(user) ?? userId;
+            var userEntity = new PasskeyUserEntity { Id = userId, Name = userName, DisplayName = userName };
+
+            var optionsJson = await signInManager.MakePasskeyCreationOptionsAsync(userEntity);
+            return TypedResults.Content(optionsJson, contentType: "application/json");
+        }).RequireAuthorization();
+
+        accountGroup.MapPost("/PasskeyRequestOptions", async (
+            HttpContext context,
+            [FromServices] UserManager<ApplicationUser> userManager,
+            [FromServices] SignInManager<ApplicationUser> signInManager) =>
+        {
+            var username = context.Request.Query["username"].ToString();
+            var user = string.IsNullOrEmpty(username) ? null : await userManager.FindByNameAsync(username);
+
+            var optionsJson = await signInManager.MakePasskeyRequestOptionsAsync(user);
+            return TypedResults.Content(optionsJson, contentType: "application/json");
+        });
+
         accountGroup.MapPost("/Logout", async (
             ClaimsPrincipal user,
             [FromServices] SignInManager<ApplicationUser> signInManager,

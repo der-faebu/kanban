@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
+@using Kanban.Components.Account
 @using Kanban.Data
 
 @inject UserManager<ApplicationUser> UserManager
@@ -36,6 +37,7 @@
                 Remember me
             </label>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
+            <PasskeySubmit Operation="PasskeyOperation.Request" Name="@nameof(Input)" EmailName="Input.Email" class="w-100 btn btn-lg btn-secondary mt-2">Sign in with a passkey</PasskeySubmit>
             <div class="auth-links">
                 <a href="Account/ForgotPassword">Forgot your password?</a>
                 <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Register as a new user</a>
@@ -77,6 +79,18 @@
 
     public async Task LoginUser()
     {
+        if (!string.IsNullOrEmpty(Input.Error))
+        {
+            errorMessage = $"Error: {Input.Error}";
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(Input.CredentialJson))
+        {
+            await LoginWithPasskeyAsync();
+            return;
+        }
+
         // If doing a password sign-in, validate the form.
         if (!editContext.Validate())
         {
@@ -109,6 +123,42 @@
         }
     }
 
+    private async Task LoginWithPasskeyAsync()
+    {
+        SignInResult result;
+        try
+        {
+            result = await SignInManager.PasskeySignInAsync(Input.CredentialJson!);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Passkey sign-in failed.");
+            errorMessage = "Error: Invalid passkey.";
+            return;
+        }
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in with a passkey.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo(
+                "Account/LoginWith2fa",
+                new() { ["returnUrl"] = ReturnUrl });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "Error: Invalid passkey.";
+        }
+    }
+
     private sealed class InputModel
     {
         [Required]
@@ -121,5 +171,9 @@
 
         [Display(Name = "Remember me?")]
         public bool RememberMe { get; set; }
+
+        public string? CredentialJson { get; set; }
+
+        public string? Error { get; set; }
     }
 }

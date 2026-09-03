@@ -52,7 +52,7 @@ public class AuthenticationTests : IAsyncLifetime
         var form = registerDocument.QuerySelector("form");
         Assert.NotNull(form);
 
-        var formData = GetHiddenFormFields(registerDocument);
+        var formData = IdentityFormTestHelpers.GetHiddenFormFields(registerDocument);
         formData["Input.Email"] = "test@example.com";
         formData["Input.Password"] = "TestPassword123!";
         formData["Input.ConfirmPassword"] = "TestPassword123!";
@@ -76,7 +76,7 @@ public class AuthenticationTests : IAsyncLifetime
         var loginContent = await loginPage.Content.ReadAsStringAsync();
         var loginDocument = await _context.OpenAsync(req => req.Content(loginContent));
 
-        var formData = GetHiddenFormFields(loginDocument);
+        var formData = IdentityFormTestHelpers.GetHiddenFormFields(loginDocument);
         formData["Input.Email"] = email;
         formData["Input.Password"] = password;
 
@@ -99,7 +99,7 @@ public class AuthenticationTests : IAsyncLifetime
         var loginContent = await loginPage.Content.ReadAsStringAsync();
         var loginDocument = await _context.OpenAsync(req => req.Content(loginContent));
 
-        var formData = GetHiddenFormFields(loginDocument);
+        var formData = IdentityFormTestHelpers.GetHiddenFormFields(loginDocument);
         formData["Input.Email"] = email;
         formData["Input.Password"] = "WrongPassword123!";
 
@@ -116,27 +116,12 @@ public class AuthenticationTests : IAsyncLifetime
         var registerContent = await registerPage.Content.ReadAsStringAsync();
         var registerDocument = await _context.OpenAsync(req => req.Content(registerContent));
 
-        var formData = GetHiddenFormFields(registerDocument);
+        var formData = IdentityFormTestHelpers.GetHiddenFormFields(registerDocument);
         formData["Input.Email"] = email;
         formData["Input.Password"] = password;
         formData["Input.ConfirmPassword"] = password;
 
         var content = new FormUrlEncodedContent(formData);
         await _client.PostAsync("/Account/Register", content);
-    }
-
-    private static Dictionary<string, string> GetHiddenFormFields(AngleSharp.Dom.IDocument document)
-    {
-        var fields = new Dictionary<string, string>();
-        foreach (var input in document.QuerySelectorAll("input[type='hidden']"))
-        {
-            var name = input.GetAttribute("name");
-            if (string.IsNullOrEmpty(name))
-                continue;
-
-            fields[name] = input.GetAttribute("value") ?? string.Empty;
-        }
-
-        return fields;
     }
 }

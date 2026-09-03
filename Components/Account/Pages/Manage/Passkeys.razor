@@ -1,0 +1,137 @@
+@page "/Account/Manage/Passkeys"
+
+@using Microsoft.AspNetCore.Identity
+@using Kanban.Components.Account
+@using Kanban.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Passkeys</PageTitle>
+
+<h1 class="manage-title">Passkeys</h1>
+<StatusMessage Message="@message" />
+
+@if (passkeys is { Count: > 0 })
+{
+    <table class="table">
+        <tbody>
+            @foreach (var passkey in passkeys)
+            {
+                <tr>
+                    <td>@(string.IsNullOrWhiteSpace(passkey.Name) ? "Unnamed passkey" : passkey.Name)</td>
+                    <td>@passkey.CreatedAt.LocalDateTime.ToShortDateString()</td>
+                    <td>
+                        <form @formname="@($"remove-passkey-{Convert.ToBase64String(passkey.CredentialId)}")" @onsubmit="() => OnRemoveAsync(passkey.CredentialId)" method="post">
+                            <AntiforgeryToken />
+                            <button type="submit" class="btn btn-primary" title="Remove this passkey from your account">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>You don't have any passkeys yet.</p>
+}
+
+<h4>Register a new passkey</h4>
+<EditForm Model="Input" FormName="add-passkey" OnSubmit="OnAddPasskeyAsync" method="post">
+    <AntiforgeryToken />
+    <div class="auth-field">
+        <label for="passkey-name">Passkey name</label>
+        <input type="text" name="PasskeyName" value="@SubmittedPasskeyName" id="passkey-name" class="form-control" placeholder="e.g. My laptop" />
+    </div>
+    <PasskeySubmit Operation="PasskeyOperation.Create" Name="@nameof(Input)" class="btn btn-primary mt-2">Register a new passkey</PasskeySubmit>
+</EditForm>
+
+@code {
+    private string? message;
+    private ApplicationUser? user;
+    private IList<UserPasskeyInfo>? passkeys;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "add-passkey")]
+    private PasskeyInputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "add-passkey", Name = "PasskeyName")]
+    private string? SubmittedPasskeyName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+
+        user = await UserManager.GetUserAsync(HttpContext.User);
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        passkeys = await UserManager.GetPasskeysAsync(user);
+    }
+
+    private async Task OnAddPasskeyAsync()
+    {
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(Input.Error))
+        {
+            message = $"Error: {Input.Error}";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(Input.CredentialJson))
+        {
+            message = "Error: No passkey credential was provided.";
+            return;
+        }
+
+        var attestationResult = await SignInManager.PerformPasskeyAttestationAsync(Input.CredentialJson);
+        if (!attestationResult.Succeeded)
+        {
+            message = $"Error: {attestationResult.Failure?.Message ?? "Unable to register this passkey."}";
+            return;
+        }
+
+        var passkey = attestationResult.Passkey;
+        passkey.Name = string.IsNullOrWhiteSpace(SubmittedPasskeyName) ? "Passkey" : SubmittedPasskeyName.Trim();
+
+        var result = await UserManager.AddOrUpdatePasskeyAsync(user, passkey);
+        if (!result.Succeeded)
+        {
+            message = $"Error: {string.Join(",", result.Errors.Select(e => e.Description))}";
+            return;
+        }
+
+        RedirectManager.RedirectToCurrentPageWithStatus("Passkey registered.", HttpContext);
+    }
+
+    private async Task OnRemoveAsync(byte[] credentialId)
+    {
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        var result = await UserManager.RemovePasskeyAsync(user, credentialId);
+        if (!result.Succeeded)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus("Error: The passkey was not removed.", HttpContext);
+        }
+        else
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus("The passkey was removed.", HttpContext);
+        }
+    }
+}

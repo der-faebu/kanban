@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Kanban.Data.Entities;
@@ -24,6 +25,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<IdentityUserPasskey<string>>(b =>
+        {
+            b.ToTable("AspNetUserPasskeys");
+            b.HasKey(p => p.CredentialId);
+            b.ComplexProperty(p => p.Data);
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .IsRequired();
+        });
 
         builder.Entity<Board>()
             .HasOne(b => b.Owner)

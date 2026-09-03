@@ -291,7 +291,7 @@
                                     {
                                         <MudDatePicker Date="editingEntryDate" DateChanged="d => editingEntryDate = d" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
                                         <MudNumericField T="decimal?" @bind-Value="editingEntryHours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Placeholder="Hours" Min="0" />
-                                        <MudTextField @bind-Value="editingEntryNote" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Note (optional)" FullWidth="true" />
+                                        <MudTextField @bind-Value="editingEntryNote" Variant="Variant.Outlined" Margin="Margin.Dense" Label="Note (optional)" FullWidth="true" />
                                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => SaveTimeEntryEdit(entry.Id)">Save</MudButton>
                                         <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="CancelEditingTimeEntry">Cancel</MudButton>
                                     }
@@ -317,10 +317,10 @@
                             }
                         </div>
 
-                        <div class="flex flex-wrap gap-2 items-end">
+                        <div class="flex flex-wrap gap-2 items-center">
                             <MudDatePicker Date="newEntryDate" DateChanged="d => newEntryDate = d" Label="Date" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" />
                             <MudNumericField T="decimal?" @bind-Value="newEntryHours" Label="Hours" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
-                            <MudTextField @bind-Value="newEntryNote" Placeholder="Note (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudTextField @bind-Value="newEntryNote" Label="Note (optional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="AddTimeEntry" Disabled="@(newEntryHours is not > 0 || !newEntryDate.HasValue)">Log time</MudButton>
                         </div>
                     </div>
@@ -484,6 +484,7 @@
     .prop-row {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 10px;
     }
 

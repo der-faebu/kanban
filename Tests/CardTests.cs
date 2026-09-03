@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Kanban.Data;
@@ -771,6 +772,89 @@ public class CardTests : IAsyncLifetime
         var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Sub-card" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetCardState_LastChildBecomesDone_AutoClosesParent()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var (parentCardId, child1Id, child2Id) = await SeedParentWithTwoChildrenAsync();
+
+        await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child1Id}/state", new SetCardStateRequest { State = CardState.Done });
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child2Id}/state", new SetCardStateRequest { State = CardState.Done });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var parent = await dbContext.Cards.FirstAsync(c => c.Id == parentCardId);
+        Assert.Equal(CardState.Done, parent.State);
+        Assert.True(parent.StateSetAutomatically);
+    }
+
+    [Fact]
+    public async Task SetCardState_ChildLeavesDone_AutoReopensAutoClosedParent()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var (parentCardId, child1Id, child2Id) = await SeedParentWithTwoChildrenAsync();
+        await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child1Id}/state", new SetCardStateRequest { State = CardState.Done });
+        await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child2Id}/state", new SetCardStateRequest { State = CardState.Done });
+
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child1Id}/state", new SetCardStateRequest { State = CardState.InProgress });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var parent = await dbContext.Cards.FirstAsync(c => c.Id == parentCardId);
+        Assert.Equal(CardState.InProgress, parent.State);
+        Assert.True(parent.StateSetAutomatically);
+    }
+
+    [Fact]
+    public async Task SetCardState_ChildLeavesDone_DoesNotReopenManuallyClosedParent()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        var (parentCardId, child1Id, _) = await SeedParentWithTwoChildrenAsync();
+
+        // Parent is manually marked Done while a child is still open.
+        await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/state", new SetCardStateRequest { State = CardState.Done });
+
+        var response = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child1Id}/state", new SetCardStateRequest { State = CardState.Done });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Then a child changes state again -- the manually-set parent must stay untouched.
+        var response2 = await _client.PutAsJsonAsync($"/api/lists/{_listId}/cards/{child1Id}/state", new SetCardStateRequest { State = CardState.InProgress });
+        Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var parent = await dbContext.Cards.FirstAsync(c => c.Id == parentCardId);
+        Assert.Equal(CardState.Done, parent.State);
+        Assert.False(parent.StateSetAutomatically);
+    }
+
+    private async Task<(int parentCardId, int child1Id, int child2Id)> SeedParentWithTwoChildrenAsync()
+    {
+        int parentCardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Parent Card", Position = 0 };
+            dbContext.Cards.Add(card);
+            await dbContext.SaveChangesAsync();
+            parentCardId = card.Id;
+        }
+
+        var child1Response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Child 1" });
+        var child1 = await child1Response.Content.ReadFromJsonAsync<Card>();
+        var child2Response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{parentCardId}/subcards", new CreateCardRequest { Title = "Child 2" });
+        var child2 = await child2Response.Content.ReadFromJsonAsync<Card>();
+
+        return (parentCardId, child1!.Id, child2!.Id);
     }
 
     private async Task<string> CreateOtherUserAsync()

@@ -9,6 +9,7 @@ public interface ITimeTrackingService
     Task<TimeLogEntry> AddTimeLogEntryAsync(int cardId, string userId, DateTime date, decimal durationHours, string? note);
     Task<List<TimeLogEntry>> GetCardTimeLogEntriesAsync(int cardId, string userId);
     Task<decimal> GetCardLoggedHoursAsync(int cardId, string userId);
+    Task<decimal> GetCardLoggedHoursIncludingSubCardsAsync(int cardId, string userId);
     Task UpdateTimeLogEntryAsync(int entryId, string userId, DateTime date, decimal durationHours, string? note);
     Task DeleteTimeLogEntryAsync(int entryId, string userId);
 }
@@ -79,6 +80,28 @@ public class TimeTrackingService(IDbContextFactory<ApplicationDbContext> context
 
         return await context.TimeLogEntries
             .Where(t => t.CardId == cardId && !t.IsDeleted)
+            .SumAsync(t => (decimal?)t.DurationHours) ?? 0m;
+    }
+
+    public async Task<decimal> GetCardLoggedHoursIncludingSubCardsAsync(int cardId, string userId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var card = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == cardId && !c.IsDeleted);
+        if (card?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(card.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var cardIds = await context.Cards
+            .Where(c => c.Id == cardId || (c.ParentCardId == cardId && !c.IsDeleted))
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        return await context.TimeLogEntries
+            .Where(t => cardIds.Contains(t.CardId) && !t.IsDeleted)
             .SumAsync(t => (decimal?)t.DurationHours) ?? 0m;
     }
 

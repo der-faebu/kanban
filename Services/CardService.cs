@@ -18,6 +18,7 @@ public interface ICardService
     Task SetEstimatedHoursAsync(int cardId, string userId, decimal? estimatedHours);
     Task<Card> CreateSubCardAsync(int parentCardId, string userId, string title, string description);
     Task<List<Card>> GetSubCardsAsync(int parentCardId, string userId);
+    Task<(int Done, int Total)> GetSubCardProgressAsync(int parentCardId, string userId);
     Task MoveCardAsync(int cardId, string userId, int targetListId, int position);
     Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions);
     Task SoftDeleteCardAsync(int cardId, string userId);
@@ -162,14 +163,58 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
             throw new InvalidOperationException("User is not a board member");
 
         var boardId = card.List.BoardId;
+        var parentCardId = card.ParentCardId;
+        await PersistStateChangeAsync(context, boardId, card, state, userId, automatic: false);
+
+        if (parentCardId.HasValue)
+            await SyncParentStateAsync(parentCardId.Value, userId);
+    }
+
+    private async Task SyncParentStateAsync(int parentCardId, string userId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var parent = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == parentCardId && !c.IsDeleted);
+        if (parent?.List == null)
+            return;
+
+        var children = await context.Cards
+            .Where(c => c.ParentCardId == parentCardId && !c.IsDeleted)
+            .ToListAsync();
+
+        if (children.Count == 0)
+            return;
+
+        var allDone = children.All(c => c.State == CardState.Done);
+
+        CardState newState;
+        if (allDone && parent.State != CardState.Done)
+        {
+            newState = CardState.Done;
+        }
+        else if (!allDone && parent.State == CardState.Done && parent.StateSetAutomatically)
+        {
+            newState = CardState.InProgress;
+        }
+        else
+        {
+            return;
+        }
+
+        await PersistStateChangeAsync(context, parent.List.BoardId, parent, newState, userId, automatic: true);
+    }
+
+    private async Task PersistStateChangeAsync(ApplicationDbContext context, int boardId, Card card, CardState state, string userId, bool automatic)
+    {
         card.State = state;
+        card.StateSetAutomatically = automatic;
         card.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
-        await boardSyncService.BroadcastCardStateChangedAsync(boardId, cardId, state);
+        await boardSyncService.BroadcastCardStateChangedAsync(boardId, card.Id, state);
 
-        var metadata = new { state = state.ToString() };
-        await activityLogService.LogAsync(cardId, userId, ActivityType.StateChanged, metadata);
-        await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.StateChanged, userId, metadata, DateTime.UtcNow);
+        var metadata = new { state = state.ToString(), automatic };
+        await activityLogService.LogAsync(card.Id, userId, ActivityType.StateChanged, metadata);
+        await boardSyncService.BroadcastActivityLoggedAsync(boardId, card.Id, ActivityType.StateChanged, userId, metadata, DateTime.UtcNow);
     }
 
     public async Task SetCardTypeAsync(int cardId, string userId, CardType? type)
@@ -304,6 +349,23 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
             .Where(c => c.ParentCardId == parentCardId && !c.IsDeleted)
             .OrderBy(c => c.Position)
             .ToListAsync();
+    }
+
+    public async Task<(int Done, int Total)> GetSubCardProgressAsync(int parentCardId, string userId)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var parent = await context.Cards.Include(c => c.List).FirstOrDefaultAsync(c => c.Id == parentCardId && !c.IsDeleted);
+        if (parent?.List == null)
+            throw new InvalidOperationException("Card not found");
+
+        var isMember = await listService.IsUserBoardMemberAsync(parent.List.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var total = await context.Cards.CountAsync(c => c.ParentCardId == parentCardId && !c.IsDeleted);
+        var done = await context.Cards.CountAsync(c => c.ParentCardId == parentCardId && !c.IsDeleted && c.State == CardState.Done);
+        return (done, total);
     }
 
     public async Task MoveCardAsync(int cardId, string userId, int targetListId, int position)

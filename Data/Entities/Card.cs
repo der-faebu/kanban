@@ -11,6 +11,7 @@ public class Card
     public DateTime? DueDate { get; set; }
     public CardPriority? Priority { get; set; }
     public CardState State { get; set; } = CardState.NotStarted;
+    public bool StateSetAutomatically { get; set; }
     public CardType? Type { get; set; }
     public string? DevReferenceUrl { get; set; }
     public string? TicketUrl { get; set; }

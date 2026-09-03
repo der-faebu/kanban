@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Kanban.Data;
 using Kanban.Data.Entities;
+using Kanban.Services;
 using Kanban.Tests.Fixtures;
 
 namespace Kanban.Tests;
@@ -166,6 +167,34 @@ public class TimeTrackingTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, entries!.Count);
         Assert.Equal(3.25m, entries.Sum(e => e.DurationHours));
+    }
+
+    [Fact]
+    public async Task GetCardLoggedHoursIncludingSubCards_SumsParentAndDirectChildren()
+    {
+        AuthenticateAs(_userId);
+
+        int subCardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var subCard = new Card { ListId = _listId, ParentCardId = _cardId, Title = "Sub-card", Position = 1 };
+            dbContext.Cards.Add(subCard);
+            await dbContext.SaveChangesAsync();
+            subCardId = subCard.Id;
+        }
+
+        await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{_cardId}/time-entries", new CreateTimeLogEntryRequest { Date = DateTime.UtcNow.Date, DurationHours = 2m });
+        await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{subCardId}/time-entries", new CreateTimeLogEntryRequest { Date = DateTime.UtcNow.Date, DurationHours = 1.5m });
+
+        using var scope2 = _factory.Services.CreateScope();
+        var timeTrackingService = scope2.ServiceProvider.GetRequiredService<ITimeTrackingService>();
+
+        var ownOnly = await timeTrackingService.GetCardLoggedHoursAsync(_cardId, _userId);
+        var withSubCards = await timeTrackingService.GetCardLoggedHoursIncludingSubCardsAsync(_cardId, _userId);
+
+        Assert.Equal(2m, ownOnly);
+        Assert.Equal(3.5m, withSubCards);
     }
 
     [Fact]

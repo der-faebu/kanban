@@ -277,6 +277,10 @@
                             <MudNumericField T="decimal?" @bind-Value="estimatedHours" Immediate="true" OnBlur="SaveEstimatedHours"
                                              Label="Estimate (hours)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="prop-control" Min="0" />
                             <MudText Class="text-ink-muted self-center">Logged: @loggedHours.ToString("0.##")h</MudText>
+                            @if (subCards.Count > 0)
+                            {
+                                <MudText Class="text-ink-muted self-center">Logged incl. sub-cards: @loggedHoursIncludingSubCards.ToString("0.##")h</MudText>
+                            }
                         </div>
 
                         <div class="mb-3 flex flex-col gap-2">
@@ -802,6 +806,7 @@
 
     private decimal? estimatedHours;
     private decimal loggedHours;
+    private decimal loggedHoursIncludingSubCards;
     private List<TimeLogEntry> timeLogEntries = [];
     private int? editingTimeEntryId;
     private DateTime? editingEntryDate;
@@ -889,6 +894,10 @@
                 parentCardTitle = null;
                 subCards = await CardService.GetSubCardsAsync(CardId, userId);
             }
+
+            loggedHoursIncludingSubCards = subCards.Count > 0
+                ? await TimeTrackingService.GetCardLoggedHoursIncludingSubCardsAsync(CardId, userId)
+                : loggedHours;
 
             authorNames = boardMembers
                 .Where(m => m.User != null)

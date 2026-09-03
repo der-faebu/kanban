@@ -37,6 +37,10 @@
             {
                 <span class="meta-pill" title="Due date" style="@DueDateStyle(Card.DueDate.Value, Card.State)">📅 @Card.DueDate.Value.ToShortDateString()</span>
             }
+            @if (subCardTotal > 0)
+            {
+                <span class="meta-pill" title="Sub-card progress">☰ @subCardDone/@subCardTotal done</span>
+            }
             @if (checklistTotal > 0)
             {
                 <span class="meta-pill" title="Checklist progress">☑ @checklistDone/@checklistTotal</span>
@@ -257,6 +261,8 @@
     private int checklistDone;
     private int checklistTotal;
     private int attachmentCount;
+    private int subCardDone;
+    private int subCardTotal;
     private bool isDragging;
 
     protected override async Task OnInitializedAsync()
@@ -283,6 +289,11 @@
             commentCount = await CommentService.GetCardCommentCountAsync(Card.Id, userId);
             (checklistDone, checklistTotal) = await ChecklistService.GetChecklistProgressAsync(Card.Id, userId);
             attachmentCount = await AttachmentService.GetAttachmentCountAsync(Card.Id, userId);
+
+            if (!Card.ParentCardId.HasValue)
+            {
+                (subCardDone, subCardTotal) = await CardService.GetSubCardProgressAsync(Card.Id, userId);
+            }
         }
         catch (Exception ex)
         {

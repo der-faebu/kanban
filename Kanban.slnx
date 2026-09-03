@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="Kanban.csproj" />
-  <Project Path="Tests/Kanban.Tests.csproj" />
+  <Project Path="src/Kanban/Kanban.csproj" />
+  <Project Path="tests/Kanban.Tests/Kanban.Tests.csproj" />
 </Solution>

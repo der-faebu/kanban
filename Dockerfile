@@ -3,10 +3,10 @@ WORKDIR /src
 
 # Restore first, isolated from the rest of the source, so the (much slower) NuGet
 # package download only re-runs when the project file itself changes.
-COPY Kanban.csproj .
+COPY src/Kanban/Kanban.csproj .
 RUN dotnet restore Kanban.csproj
 
-COPY . .
+COPY src/Kanban/. .
 # No --no-restore here: ASP.NET Core's static web assets discovery (which is what
 # produces the _framework/blazor.web.js manifest entry the Blazor circuit needs to
 # even connect) runs as part of restore too, and at the restore step above wwwroot/

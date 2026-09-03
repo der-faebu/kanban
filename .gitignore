@@ -18,7 +18,7 @@ Thumbs.db
 *.log
 
 ## Local attachment storage (dev default; production points at a mounted volume)
-/uploads/
+/src/Kanban/uploads/
 
 ## Tailwind build tooling (wwwroot/tailwind.css output is committed; run `npm run build:css` after installing)
-/node_modules/
+/src/Kanban/node_modules/

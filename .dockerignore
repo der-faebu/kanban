@@ -6,4 +6,5 @@
 .vs/
 .vscode/
 *.user
-Tests/
+**/node_modules/
+tests/

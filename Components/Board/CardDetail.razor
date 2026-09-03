@@ -36,6 +36,13 @@
             <div class="card-dialog-columns">
                 <div class="card-dialog-left">
                     <div class="card-toolbar">
+                        <MudButton Class="toolbar-item" Variant="Variant.Filled" Size="Size.Small"
+                                   Color="@(state == CardState.Done ? Color.Default : Color.Success)"
+                                   StartIcon="@(state == CardState.Done ? Icons.Material.Filled.Replay : Icons.Material.Filled.CheckCircle)"
+                                   OnClick="ToggleClose">
+                            @(state == CardState.Done ? "Reopen" : "Close")
+                        </MudButton>
+
                         <MudMenu Class="toolbar-item state-menu" Label="@CardStateStyles.Label(state)"
                                  Variant="Variant.Filled" Size="Size.Small" Color="@StateMenuColor(state)">
                             @foreach (var s in Enum.GetValues<CardState>())
@@ -1046,6 +1053,8 @@
             Console.WriteLine($"Error updating card priority: {ex.Message}");
         }
     }
+
+    private Task ToggleClose() => HandleStateChanged(state == CardState.Done ? CardState.InProgress : CardState.Done);
 
     private async Task HandleStateChanged(CardState newState)
     {

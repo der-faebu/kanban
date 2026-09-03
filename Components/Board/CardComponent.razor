@@ -65,12 +65,12 @@
             }
         </div>
     </div>
-    <div @onclick:stopPropagation="true">
-        <MudIconButton Icon="@Icons.Material.Filled.Close"
+    <div class="card-actions" @onclick:stopPropagation="true">
+        <MudIconButton Icon="@(Card.State == CardState.Done ? Icons.Material.Filled.Replay : Icons.Material.Filled.CheckCircleOutline)"
                        Size="Size.Small"
-                       Class="card-delete p-1"
-                       OnClick="HandleDelete"
-                       title="Delete" />
+                       Class="card-close p-1"
+                       OnClick="HandleToggleClose"
+                       title="@(Card.State == CardState.Done ? "Reopen" : "Close")" />
     </div>
 </div>
 
@@ -136,6 +136,11 @@
         color: var(--knb-text-tertiary);
     }
 
+    .card-actions {
+        display: flex;
+        flex-shrink: 0;
+    }
+
     .card-delete {
         color: var(--knb-text-tertiary);
         flex-shrink: 0;
@@ -143,6 +148,15 @@
 
         .card-delete:hover {
             color: var(--knb-danger);
+        }
+
+    .card-close {
+        color: var(--knb-text-tertiary);
+        flex-shrink: 0;
+    }
+
+        .card-close:hover {
+            color: var(--knb-success);
         }
 
     .label-row {
@@ -341,6 +355,23 @@
     private void HandleDragEnd(DragEventArgs e)
     {
         isDragging = false;
+    }
+
+    private async Task HandleToggleClose()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            try
+            {
+                var newState = Card.State == CardState.Done ? CardState.InProgress : CardState.Done;
+                await CardService.SetCardStateAsync(Card.Id, userId, newState);
+                await OnCardMoved.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating card state: {ex.Message}");
+            }
+        }
     }
 
     private async Task HandleDelete()

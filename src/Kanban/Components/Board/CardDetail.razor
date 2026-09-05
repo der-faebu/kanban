@@ -774,6 +774,7 @@
     private bool isOwner = false;
     private string? userId;
     private HubConnection? hubConnection;
+    private bool disposed;
 
     private string title = string.Empty;
     private string description = string.Empty;
@@ -999,12 +1000,22 @@
 
     private async Task Refresh()
     {
+        if (disposed) return;
         await LoadCardData();
-        await InvokeAsync(StateHasChanged);
+        if (disposed) return;
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The dialog closed while this refresh was in flight; nothing left to render.
+        }
     }
 
     private async Task RefreshIfForThisCard(JsonElement data)
     {
+        if (disposed) return;
         if (data.TryGetProperty("cardId", out var cardIdProp) && cardIdProp.GetInt32() == CardId)
         {
             await Refresh();
@@ -1599,6 +1610,7 @@
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
+        disposed = true;
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();

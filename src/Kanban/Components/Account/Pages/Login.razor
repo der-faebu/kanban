@@ -19,7 +19,13 @@
         <h1>Log in</h1>
         <p class="auth-subtitle">Use a local account to log in.</p>
         <StatusMessage Message="@errorMessage" />
-        <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
+        @* Enhance="false" forces a real full-page form post instead of Blazor's fetch-based
+           enhanced navigation. The enhanced-nav path submits via fetch and lets client-side
+           routing apply the redirect, which on some mobile browsers doesn't reliably persist
+           the auth cookie the server just set (SignInManager succeeds server-side -- see the
+           "User logged in." log line -- but the browser lands back on a logged-out page). A
+           full-page post/redirect always applies Set-Cookie before the next page loads. *@
+        <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login" Enhance="false">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
             <div class="auth-field">

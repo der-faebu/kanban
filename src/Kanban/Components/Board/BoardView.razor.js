@@ -8,6 +8,10 @@
 // default; buzzes once the drag actually arms as a no-visual-cue confirmation. Most modern mobile
 // browsers dispatch pointer events (not touch events) for touch input, hence checking
 // pointerType alongside event.type.
+//
+// Also toggles a body-level class for the chosen/dragging duration: CardComponent's hover-lift
+// effect transitions `transform`, and that same transition otherwise fights every position update
+// SortableJS applies while tracking the pointer, making the card visibly lag behind the finger.
 const touchDragOptions = {
     delay: 500,
     delayOnTouchOnly: true,
@@ -15,10 +19,14 @@ const touchDragOptions = {
     scrollSensitivity: 60,
     scrollSpeed: 15,
     onChoose: (evt) => {
+        document.body.classList.add('kanban-drag-active');
         const isTouch = evt.originalEvent?.pointerType === 'touch' || evt.originalEvent?.type?.startsWith('touch');
         if (isTouch && navigator.vibrate) {
             navigator.vibrate(15);
         }
+    },
+    onUnchoose: () => {
+        document.body.classList.remove('kanban-drag-active');
     },
 };
 

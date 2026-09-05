@@ -103,6 +103,13 @@
         opacity: 0.5;
     }
 
+    /* SortableJS repositions the card every pointer-move frame while dragging; the transform
+       transition above is meant for the hover lift, but it also fights that per-frame tracking,
+       making the card lag behind the finger. */
+    .kanban-drag-active .card {
+        transition: none;
+    }
+
     .card-content {
         flex: 1;
         min-width: 0;

@@ -19,6 +19,7 @@ public interface IAdminUserService
     Task<List<AdminUserSummary>> GetUsersAsync();
     Task SetAdminRoleAsync(string userId, bool isAdmin);
     Task SetLockedOutAsync(string userId, bool lockedOut);
+    Task DeleteUserAsync(string userId);
 }
 
 public class AdminUserService(
@@ -97,6 +98,23 @@ public class AdminUserService(
         }
 
         EnsureSucceeded(await userManager.SetLockoutEndDateAsync(user, lockedOut ? DateTimeOffset.MaxValue : null));
+    }
+
+    public async Task DeleteUserAsync(string userId)
+    {
+        var user = await userManager.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException($"User '{userId}' not found.");
+
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        // Boards cascade-delete their members' data (lists, cards, comments, ...) at the DB
+        // level, so a deletion here is blocked rather than allowed to silently take other
+        // members' work with it -- the board must be reassigned or removed first.
+        var ownsBoards = await db.Boards.AnyAsync(b => b.OwnerId == userId);
+        if (ownsBoards)
+            throw new InvalidOperationException("User still owns one or more boards. Reassign or remove those boards before deleting the account.");
+
+        EnsureSucceeded(await userManager.DeleteAsync(user));
     }
 
     private static void EnsureSucceeded(IdentityResult result)

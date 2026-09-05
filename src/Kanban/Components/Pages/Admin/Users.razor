@@ -10,6 +10,11 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
     <MudText Typo="Typo.h4" Class="mb-6">Users</MudText>
 
+    @if (!string.IsNullOrEmpty(deleteErrorMessage))
+    {
+        <MudAlert Class="delete-error mb-4" Severity="Severity.Error" CloseIconClicked="@(() => deleteErrorMessage = null)" ShowCloseIcon="true">@deleteErrorMessage</MudAlert>
+    }
+
     <MudTextField T="string" Value="@searchTerm" ValueChanged="OnSearchChanged" Immediate="true" Label="Search by email" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
 
     @if (users is null)
@@ -40,6 +45,9 @@
                     <MudButton Class="lockout-toggle" Size="Size.Small" Variant="Variant.Text" Color="@(context.IsLockedOut ? Color.Success : Color.Error)" OnClick="@(() => ToggleLockoutAsync(context))">
                         @(context.IsLockedOut ? "Unlock" : "Lock")
                     </MudButton>
+                    <MudButton Class="delete-user" Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="@(() => DeleteUserAsync(context))">
+                        Delete
+                    </MudButton>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -52,6 +60,7 @@
 @code {
     private List<AdminUserSummary>? users;
     private string searchTerm = "";
+    private string? deleteErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,6 +107,20 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error updating lockout: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteUserAsync(AdminUserSummary user)
+    {
+        try
+        {
+            deleteErrorMessage = null;
+            await AdminUserService.DeleteUserAsync(user.Id);
+            users!.RemoveAll(u => u.Id == user.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            deleteErrorMessage = ex.Message;
         }
     }
 

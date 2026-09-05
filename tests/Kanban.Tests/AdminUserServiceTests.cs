@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Kanban.Data;
+using Kanban.Data.Entities;
 using Kanban.Services;
 using Kanban.Tests.Fixtures;
 
@@ -252,6 +254,77 @@ public class AdminUserServiceTests : IAsyncLifetime
 
         var result = await CheckPasswordSignInAsync(userId, password);
         Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_ForUserOwningNoBoards_RemovesAccount()
+    {
+        var email = "deleteme@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        await service.DeleteUserAsync(userId);
+
+        var users = await service.GetUsersAsync();
+        Assert.DoesNotContain(users, u => u.Email == email);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_ForUserOwningABoard_IsRejectedAndDeletesNothing()
+    {
+        var email = "boardowner@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            dbContext.Boards.Add(new Board { Name = "Owned board", OwnerId = userId });
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteUserAsync(userId));
+        Assert.Contains("board", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        var users = await service.GetUsersAsync();
+        Assert.Contains(users, u => u.Email == email);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_AfterBlockingBoardIsRemoved_SucceedsOnRetry()
+    {
+        var email = "retrydelete@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        int boardId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = new Board { Name = "Owned board", OwnerId = userId };
+            dbContext.Boards.Add(board);
+            await dbContext.SaveChangesAsync();
+            boardId = board.Id;
+        }
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteUserAsync(userId));
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var board = await dbContext.Boards.FirstAsync(b => b.Id == boardId);
+            dbContext.Boards.Remove(board);
+            await dbContext.SaveChangesAsync();
+        }
+
+        await service.DeleteUserAsync(userId);
+
+        var users = await service.GetUsersAsync();
+        Assert.DoesNotContain(users, u => u.Email == email);
     }
 
     private async Task<SignInResult> CheckPasswordSignInAsync(string userId, string password)

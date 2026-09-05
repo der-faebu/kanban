@@ -3,6 +3,8 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor.Services;
 using Kanban.Components.Pages.Admin;
+using Kanban.Data;
+using Kanban.Data.Entities;
 using Kanban.Services;
 using Kanban.Tests.Fixtures;
 
@@ -128,6 +130,38 @@ public class AdminUsersPageComponentTests : BunitContext, IAsyncLifetime
 
         component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Lock") && !FindRow(component, "alice@example.com").TextContent.Contains("Unlock"), WaitTimeout);
         Assert.Contains("Active", FindRow(component, "alice@example.com").TextContent);
+    }
+
+    [Fact]
+    public async Task DeleteButton_ForUserOwningNoBoards_RemovesRow()
+    {
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "delete-user");
+
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 1, WaitTimeout);
+        Assert.DoesNotContain("alice@example.com", component.Markup);
+        Assert.Contains("bob@example.com", component.Markup);
+    }
+
+    [Fact]
+    public async Task DeleteButton_ForUserOwningABoard_ShowsErrorAndKeepsRow()
+    {
+        var dbContext = _scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var aliceId = dbContext.Users.Single(u => u.Email == "alice@example.com").Id;
+        dbContext.Boards.Add(new Board { Name = "Alice's board", OwnerId = aliceId });
+        await dbContext.SaveChangesAsync();
+
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "delete-user");
+
+        component.WaitForState(() => component.Markup.Contains("delete-error"), WaitTimeout);
+        Assert.Contains("board", component.Find(".delete-error").TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(2, component.FindAll("tbody tr").Count);
+        Assert.Contains("alice@example.com", component.Markup);
     }
 
     private static IElement FindRow(IRenderedComponent<Users> component, string email) =>

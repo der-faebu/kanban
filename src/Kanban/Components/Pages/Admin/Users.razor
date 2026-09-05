@@ -24,12 +24,23 @@
                 <MudTh>Created</MudTh>
                 <MudTh>Login methods</MudTh>
                 <MudTh>Admin</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Email">@context.Email</MudTd>
                 <MudTd DataLabel="Created">@context.CreatedAt.ToString("yyyy-MM-dd")</MudTd>
                 <MudTd DataLabel="Login methods">@string.Join(", ", LoginMethods(context))</MudTd>
                 <MudTd DataLabel="Admin">@(context.IsAdmin ? "Yes" : "No")</MudTd>
+                <MudTd DataLabel="Status">@(context.IsLockedOut ? "Locked out" : "Active")</MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudButton Class="admin-toggle" Size="Size.Small" Variant="Variant.Text" OnClick="@(() => ToggleAdminAsync(context))">
+                        @(context.IsAdmin ? "Demote" : "Promote")
+                    </MudButton>
+                    <MudButton Class="lockout-toggle" Size="Size.Small" Variant="Variant.Text" Color="@(context.IsLockedOut ? Color.Success : Color.Error)" OnClick="@(() => ToggleLockoutAsync(context))">
+                        @(context.IsLockedOut ? "Unlock" : "Lock")
+                    </MudButton>
+                </MudTd>
             </RowTemplate>
             <NoRecordsContent>
                 <MudText>No users match your search.</MudText>
@@ -60,5 +71,39 @@
         if (user.HasPassword) yield return "Password";
         if (user.HasPasskey) yield return "Passkey";
         if (user.HasEntraLogin) yield return "Entra";
+    }
+
+    private async Task ToggleAdminAsync(AdminUserSummary user)
+    {
+        try
+        {
+            var isAdmin = !user.IsAdmin;
+            await AdminUserService.SetAdminRoleAsync(user.Id, isAdmin);
+            ReplaceUser(user with { IsAdmin = isAdmin });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating admin role: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleLockoutAsync(AdminUserSummary user)
+    {
+        try
+        {
+            var lockedOut = !user.IsLockedOut;
+            await AdminUserService.SetLockedOutAsync(user.Id, lockedOut);
+            ReplaceUser(user with { IsLockedOut = lockedOut });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating lockout: {ex.Message}");
+        }
+    }
+
+    private void ReplaceUser(AdminUserSummary updated)
+    {
+        var index = users!.FindIndex(u => u.Id == updated.Id);
+        users[index] = updated;
     }
 }

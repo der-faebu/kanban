@@ -204,9 +204,23 @@ else
             // Idempotent on the JS side (skips containers already flagged as initialized), so
             // it's safe -- and necessary -- to call on every render: a newly added list's
             // .cards-container wouldn't otherwise get picked up.
-            await dragModule.InvokeVoidAsync("initCardSorting", listsContainerRef, dotNetRef);
-            await dragModule.InvokeVoidAsync("initListSorting", listsContainerRef, dotNetRef);
-            await dragModule.InvokeVoidAsync("initBoardPanning", listsContainerRef);
+            //
+            // Closing the card dialog fires a NavigateTo (enhanced navigation, which patches
+            // the DOM outside the normal render pipeline) at the same moment a SignalR-driven
+            // refresh can trigger this same OnAfterRenderAsync -- occasionally that race hands
+            // us a listsContainerRef that no longer resolves to a live DOM node. These calls are
+            // best-effort setup that retries every render, so swallow the failure instead of
+            // letting it crash the whole circuit.
+            try
+            {
+                await dragModule.InvokeVoidAsync("initCardSorting", listsContainerRef, dotNetRef);
+                await dragModule.InvokeVoidAsync("initListSorting", listsContainerRef, dotNetRef);
+                await dragModule.InvokeVoidAsync("initBoardPanning", listsContainerRef);
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException)
+            {
+                Console.WriteLine($"Board drag-and-drop init skipped for this render: {ex.Message}");
+            }
         }
 
         // Opening the dialog here (not OnParametersSetAsync) matters: on a deep-linked

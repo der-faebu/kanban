@@ -1,0 +1,64 @@
+@page "/admin/users"
+@rendermode InteractiveServer
+@using Kanban.Services
+@attribute [Authorize(Policy = AdminRoleSeeder.AdminPolicyName)]
+
+@inject IAdminUserService AdminUserService
+
+<PageTitle>Admin - Users</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudText Typo="Typo.h4" Class="mb-6">Users</MudText>
+
+    <MudTextField T="string" Value="@searchTerm" ValueChanged="OnSearchChanged" Immediate="true" Label="Search by email" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+    @if (users is null)
+    {
+        <MudText>Loading...</MudText>
+    }
+    else
+    {
+        <MudTable Items="@users" Filter="new Func<AdminUserSummary, bool>(FilterUser)" Hover="true">
+            <HeaderContent>
+                <MudTh>Email</MudTh>
+                <MudTh>Created</MudTh>
+                <MudTh>Login methods</MudTh>
+                <MudTh>Admin</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Email">@context.Email</MudTd>
+                <MudTd DataLabel="Created">@context.CreatedAt.ToString("yyyy-MM-dd")</MudTd>
+                <MudTd DataLabel="Login methods">@string.Join(", ", LoginMethods(context))</MudTd>
+                <MudTd DataLabel="Admin">@(context.IsAdmin ? "Yes" : "No")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No users match your search.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private List<AdminUserSummary>? users;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await AdminUserService.GetUsersAsync();
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        searchTerm = value;
+    }
+
+    private bool FilterUser(AdminUserSummary user) =>
+        string.IsNullOrWhiteSpace(searchTerm) || user.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+
+    private static IEnumerable<string> LoginMethods(AdminUserSummary user)
+    {
+        if (user.HasPassword) yield return "Password";
+        if (user.HasPasskey) yield return "Passkey";
+        if (user.HasEntraLogin) yield return "Entra";
+    }
+}

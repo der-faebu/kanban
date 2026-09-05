@@ -50,3 +50,65 @@ export function initListSorting(rootElement, dotNetRef) {
         },
     });
 }
+
+// Desktop-only click-drag panning on the board's empty background. Ignores any mousedown that
+// starts inside a '.list' (card/column drag territory, owned by SortableJS above) or a
+// '[data-sortable-ignore]' element (e.g. AddListForm), so panning and dragging never fight over
+// the same gesture. Mobile is unaffected -- it already pans via native touch scrolling and never
+// fires mouse events.
+//
+// mousemove/mouseup are bound on document (not rootElement) so a drag keeps tracking even if the
+// pointer leaves the container mid-gesture. That means they must be explicitly torn down via
+// disposeBoardPanning -- a fresh rootElement on every board navigation would otherwise leave the
+// old listeners (and their closed-over element reference) attached to document forever.
+export function initBoardPanning(rootElement) {
+    if (rootElement.dataset.panningInitialized) {
+        return;
+    }
+    rootElement.dataset.panningInitialized = 'true';
+
+    let isPanning = false;
+    let startX = 0;
+    let startScrollLeft = 0;
+
+    const onMouseDown = (evt) => {
+        if (evt.button !== 0 || evt.target.closest('.list') || evt.target.closest('[data-sortable-ignore]')) {
+            return;
+        }
+
+        isPanning = true;
+        startX = evt.pageX;
+        startScrollLeft = rootElement.scrollLeft;
+        rootElement.classList.add('panning');
+        evt.preventDefault();
+    };
+
+    const onMouseMove = (evt) => {
+        if (!isPanning) {
+            return;
+        }
+        rootElement.scrollLeft = startScrollLeft - (evt.pageX - startX);
+    };
+
+    const onMouseUp = () => {
+        if (!isPanning) {
+            return;
+        }
+        isPanning = false;
+        rootElement.classList.remove('panning');
+    };
+
+    rootElement.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    rootElement._disposePanning = () => {
+        rootElement.removeEventListener('mousedown', onMouseDown);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    };
+}
+
+export function disposeBoardPanning(rootElement) {
+    rootElement?._disposePanning?.();
+}

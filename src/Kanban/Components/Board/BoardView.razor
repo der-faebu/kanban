@@ -27,7 +27,7 @@
         </div>
     </div>
 
-    <div class="flex gap-5 overflow-x-auto pb-3" @ref="listsContainerRef">
+    <div class="flex gap-5 overflow-x-auto pb-3 board-lists" @ref="listsContainerRef">
         @if (lists != null)
         {
             @foreach (var list in lists.OrderBy(l => l.Position))
@@ -100,6 +100,15 @@ else
     @@keyframes toast-in {
         from { opacity: 0; transform: translateY(-8px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+
+    .board-lists {
+        cursor: grab;
+    }
+
+    .board-lists.panning {
+        cursor: grabbing;
+        user-select: none;
     }
 </style>
 
@@ -197,6 +206,7 @@ else
             // .cards-container wouldn't otherwise get picked up.
             await dragModule.InvokeVoidAsync("initCardSorting", listsContainerRef, dotNetRef);
             await dragModule.InvokeVoidAsync("initListSorting", listsContainerRef, dotNetRef);
+            await dragModule.InvokeVoidAsync("initBoardPanning", listsContainerRef);
         }
 
         // Opening the dialog here (not OnParametersSetAsync) matters: on a deep-linked
@@ -453,6 +463,11 @@ else
         {
             try
             {
+                // Panning binds mousemove/mouseup on document rather than the container (so a
+                // drag keeps tracking outside its bounds), which means -- unlike the SortableJS
+                // instances above -- it doesn't get torn down for free when this element leaves
+                // the DOM; it needs an explicit unbind or those listeners leak.
+                await dragModule.InvokeVoidAsync("disposeBoardPanning", listsContainerRef);
                 await dragModule.DisposeAsync();
             }
             catch (JSDisconnectedException)

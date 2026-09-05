@@ -41,8 +41,16 @@ const touchDragOptions = {
 // moved element's listeners/attributes in a state where it can't be picked up again. Reverting the
 // DOM back to its pre-drag shape here makes Blazor's own re-render the only thing that actually
 // commits the move, so there's only ever one party mutating the tree.
+//
+// Deferred a tick on purpose: Sortable's onEnd fires *before* its own internal `_nulling` cleanup,
+// which resets state shared across every list in the same `group` (all columns share
+// 'kanban-cards'). Reverting the DOM synchronously inside onEnd raced that cleanup and corrupted
+// the shared state, breaking dragging on every other column until a full page reload. Running
+// after a setTimeout(0) lets Sortable's own transaction fully close out first.
 function revertDomMove(evt) {
-    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+    setTimeout(() => {
+        evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+    }, 0);
 }
 
 export function initCardSorting(rootElement, dotNetRef) {

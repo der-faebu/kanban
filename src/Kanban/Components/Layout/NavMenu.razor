@@ -1,9 +1,16 @@
 @implements IDisposable
+@using Kanban.Services
 @inject NavigationManager NavigationManager
 
 <MudNavMenu Class="pt-4 px-2">
     <MudNavLink Href="boards" Icon="@Icons.Material.Filled.ViewKanban">Boards</MudNavLink>
     <MudNavLink Href="projects" Icon="@Icons.Material.Filled.Folder">Projects</MudNavLink>
+
+    <AuthorizeView Policy="@AdminRoleSeeder.AdminPolicyName">
+        <Authorized>
+            <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.AdminPanelSettings">Users</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 
     <AuthorizeView>
         <Authorized>

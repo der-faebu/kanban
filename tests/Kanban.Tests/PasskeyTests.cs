@@ -235,34 +235,6 @@ public class PasskeyTests : IAsyncLifetime
         Assert.True(result.Succeeded);
     }
 
-    private async Task<string> RegisterAndLoginAsync(string email, string password)
-    {
-        await IdentityFormTestHelpers.RegisterUserAsync(_client, email, password);
-
-        using (var confirmScope = _factory.Services.CreateScope())
-        {
-            var confirmUserManager = confirmScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            var registeredUser = await confirmUserManager.FindByEmailAsync(email);
-            Assert.NotNull(registeredUser);
-            var confirmationToken = await confirmUserManager.GenerateEmailConfirmationTokenAsync(registeredUser!);
-            var confirmResult = await confirmUserManager.ConfirmEmailAsync(registeredUser!, confirmationToken);
-            Assert.True(confirmResult.Succeeded);
-        }
-
-        var loginPage = await _client.GetAsync("/Account/Login");
-        var loginContent = await loginPage.Content.ReadAsStringAsync();
-        var loginDocument = await _context.OpenAsync(req => req.Content(loginContent));
-
-        var loginFormData = IdentityFormTestHelpers.GetHiddenFormFields(loginDocument);
-        loginFormData["Input.Email"] = email;
-        loginFormData["Input.Password"] = password;
-
-        await _client.PostAsync("/Account/Login", new FormUrlEncodedContent(loginFormData));
-
-        using var scope = _factory.Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var user = await userManager.FindByEmailAsync(email);
-        Assert.NotNull(user);
-        return user!.Id;
-    }
+    private async Task<string> RegisterAndLoginAsync(string email, string password) =>
+        await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, password);
 }

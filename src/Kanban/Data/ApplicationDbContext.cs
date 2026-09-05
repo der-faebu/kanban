@@ -26,6 +26,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<ApplicationUser>(b =>
+        {
+            // Backfills existing rows with the migration-apply time on Up(); the app itself
+            // always sets CreatedAt explicitly on insert via the C# property initializer.
+            b.Property(u => u.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
         builder.Entity<IdentityUserPasskey<string>>(b =>
         {
             b.ToTable("AspNetUserPasskeys");

@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor.Services;
@@ -7,9 +8,10 @@ using Kanban.Tests.Fixtures;
 
 namespace Kanban.Tests;
 
-// bUnit coverage for the one thing the HTTP-level AdminUsersPageTests can't prove: that typing
-// into the search box actually re-filters the rendered rows (MudTable's Filter prop runs
-// client-side, so a server-rendered HTML snapshot only ever shows the unfiltered initial list).
+// bUnit coverage for what the HTTP-level AdminUsersPageTests can't prove: typing into the search
+// box re-filters the rendered rows (MudTable's Filter runs client-side, so a server-rendered HTML
+// snapshot only ever shows the unfiltered initial list), and the promote/lockout toggle buttons
+// call through to the service and immediately re-render the row's updated status.
 public class AdminUsersPageComponentTests : BunitContext, IAsyncLifetime
 {
     private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(10);
@@ -71,4 +73,66 @@ public class AdminUsersPageComponentTests : BunitContext, IAsyncLifetime
 
         component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
     }
+
+    [Fact]
+    public async Task PromoteButton_GrantsAdminRoleAndFlipsToDemote()
+    {
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "admin-toggle");
+
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Demote"), WaitTimeout);
+        Assert.Contains("Yes", FindRow(component, "alice@example.com").TextContent);
+        Assert.DoesNotContain("Demote", FindRow(component, "bob@example.com").TextContent);
+    }
+
+    [Fact]
+    public async Task DemoteButton_RevokesAdminRoleAndFlipsToPromote()
+    {
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "admin-toggle");
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Demote"), WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "admin-toggle");
+
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Promote"), WaitTimeout);
+        Assert.DoesNotContain("Yes", FindRow(component, "alice@example.com").TextContent);
+    }
+
+    [Fact]
+    public async Task LockButton_LocksUserOutAndFlipsToUnlock()
+    {
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "lockout-toggle");
+
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Unlock"), WaitTimeout);
+        Assert.Contains("Locked out", FindRow(component, "alice@example.com").TextContent);
+        Assert.DoesNotContain("Locked out", FindRow(component, "bob@example.com").TextContent);
+    }
+
+    [Fact]
+    public async Task UnlockButton_LiftsLockoutAndFlipsToLock()
+    {
+        var component = Render<Users>();
+        component.WaitForState(() => component.FindAll("tbody tr").Count == 2, WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "lockout-toggle");
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Unlock"), WaitTimeout);
+
+        await ClickRowButtonAsync(component, "alice@example.com", "lockout-toggle");
+
+        component.WaitForState(() => FindRow(component, "alice@example.com").TextContent.Contains("Lock") && !FindRow(component, "alice@example.com").TextContent.Contains("Unlock"), WaitTimeout);
+        Assert.Contains("Active", FindRow(component, "alice@example.com").TextContent);
+    }
+
+    private static IElement FindRow(IRenderedComponent<Users> component, string email) =>
+        component.FindAll("tbody tr").Single(row => row.TextContent.Contains(email));
+
+    private static async Task ClickRowButtonAsync(IRenderedComponent<Users> component, string email, string buttonClass) =>
+        await component.InvokeAsync(() => FindRow(component, email).QuerySelector($"button.{buttonClass}")!.Click());
 }

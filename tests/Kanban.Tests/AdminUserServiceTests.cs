@@ -142,4 +142,123 @@ public class AdminUserServiceTests : IAsyncLifetime
         var summary = Assert.Single(users, u => u.Email == email);
         Assert.InRange(summary.CreatedAt, before, after);
     }
+
+    [Fact]
+    public async Task GetUsersAsync_ForUserNotLockedOut_ReportsNotLockedOut()
+    {
+        var email = "notlockedout@example.com";
+        await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        var users = await service.GetUsersAsync();
+
+        var summary = Assert.Single(users, u => u.Email == email);
+        Assert.False(summary.IsLockedOut);
+    }
+
+    [Fact]
+    public async Task SetAdminRoleAsync_True_GrantsAdminRole()
+    {
+        var email = "promoteme@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        await service.SetAdminRoleAsync(userId, isAdmin: true);
+
+        var users = await service.GetUsersAsync();
+        var summary = Assert.Single(users, u => u.Email == email);
+        Assert.True(summary.IsAdmin);
+    }
+
+    [Fact]
+    public async Task SetAdminRoleAsync_False_RevokesAdminRole()
+    {
+        var email = "demoteme@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        await service.SetAdminRoleAsync(userId, isAdmin: true);
+        await service.SetAdminRoleAsync(userId, isAdmin: false);
+
+        var users = await service.GetUsersAsync();
+        var summary = Assert.Single(users, u => u.Email == email);
+        Assert.False(summary.IsAdmin);
+    }
+
+    [Fact]
+    public async Task SetAdminRoleAsync_False_RevokesBootstrapSeededAdminRole()
+    {
+        var email = "bootstrapdemote@example.com";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, "TestPassword123!");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AdminEmails:0"] = email })
+                .Build();
+            await AdminRoleSeeder.SeedAsync(scope.ServiceProvider, config);
+        }
+
+        using var serviceScope = _factory.Services.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+        await service.SetAdminRoleAsync(userId, isAdmin: false);
+
+        var users = await service.GetUsersAsync();
+        var summary = Assert.Single(users, u => u.Email == email);
+        Assert.False(summary.IsAdmin);
+    }
+
+    [Fact]
+    public async Task SetLockedOutAsync_True_ReportsLockedOutAndBlocksPasswordSignIn()
+    {
+        var email = "lockme@example.com";
+        var password = "TestPassword123!";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, password);
+
+        using (var serviceScope = _factory.Services.CreateScope())
+        {
+            var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+            await service.SetLockedOutAsync(userId, lockedOut: true);
+
+            var users = await service.GetUsersAsync();
+            var summary = Assert.Single(users, u => u.Email == email);
+            Assert.True(summary.IsLockedOut);
+        }
+
+        var result = await CheckPasswordSignInAsync(userId, password);
+        Assert.True(result.IsLockedOut);
+    }
+
+    [Fact]
+    public async Task SetLockedOutAsync_False_LiftsLockoutAndRestoresSignIn()
+    {
+        var email = "unlockme@example.com";
+        var password = "TestPassword123!";
+        var userId = await IdentityFormTestHelpers.RegisterConfirmAndLoginAsync(_client, _factory.Services, email, password);
+
+        using (var serviceScope = _factory.Services.CreateScope())
+        {
+            var service = serviceScope.ServiceProvider.GetRequiredService<IAdminUserService>();
+            await service.SetLockedOutAsync(userId, lockedOut: true);
+            await service.SetLockedOutAsync(userId, lockedOut: false);
+
+            var users = await service.GetUsersAsync();
+            var summary = Assert.Single(users, u => u.Email == email);
+            Assert.False(summary.IsLockedOut);
+        }
+
+        var result = await CheckPasswordSignInAsync(userId, password);
+        Assert.True(result.Succeeded);
+    }
+
+    private async Task<SignInResult> CheckPasswordSignInAsync(string userId, string password)
+    {
+        using var signInScope = _factory.Services.CreateScope();
+        var signInManager = signInScope.ServiceProvider.GetRequiredService<SignInManager<ApplicationUser>>();
+        var user = await signInScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByIdAsync(userId);
+        return await signInManager.CheckPasswordSignInAsync(user!, password, lockoutOnFailure: false);
+    }
 }

@@ -20,10 +20,25 @@ public class BoardImportService(IDbContextFactory<ApplicationDbContext> contextF
 
     public async Task<BoardImportResult> ImportBoardAsync(string userId, Stream zipStream, string boardName)
     {
+        // ZipArchive needs random access to read the central directory, but Blazor's
+        // InputFile stream (what the browser upload form passes in) only supports
+        // forward-only async reads. Buffer it to a seekable temp file first when needed.
+        Stream? seekableCopy = null;
+        if (!zipStream.CanSeek)
+        {
+            seekableCopy = new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite,
+                FileShare.None, 81920, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
+            await zipStream.CopyToAsync(seekableCopy);
+            seekableCopy.Position = 0;
+        }
+
+        await using var _ = seekableCopy;
+        var seekableStream = seekableCopy ?? zipStream;
+
         ZipArchive archive;
         try
         {
-            archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
+            archive = new ZipArchive(seekableStream, ZipArchiveMode.Read, leaveOpen: true);
         }
         catch (InvalidDataException)
         {

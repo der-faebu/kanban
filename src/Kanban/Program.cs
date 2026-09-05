@@ -41,6 +41,8 @@ var authenticationBuilder = builder.Services.AddAuthentication(options =>
 authenticationBuilder.AddIdentityCookies();
 authenticationBuilder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme);
 
+authenticationBuilder.AddEntraIfConfigured(EntraSettings.FromConfiguration(builder.Configuration));
+
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IConfiguration>((options, configuration) =>
     {
@@ -102,6 +104,7 @@ builder.Services.Configure<AttachmentsOptions>(builder.Configuration.GetSection(
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IExternalAccountProvisioner, ExternalAccountProvisioner>();
 builder.Services.AddScoped<DragDropState>();
 builder.Services.AddScoped<ThemeState>();
 

@@ -21,7 +21,7 @@
         <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Label" OnClick="OpenManageLabels">Manage labels</MudButton>
     </div>
 
-    <div class="flex gap-5 overflow-x-auto pb-3" ondragover="event.preventDefault()" @ref="listsContainerRef">
+    <div class="flex gap-5 overflow-x-auto pb-3" @ref="listsContainerRef">
         @if (lists != null)
         {
             @foreach (var list in lists.OrderBy(l => l.Position))
@@ -35,7 +35,9 @@
                     @key="list.Id" />
             }
         }
-        <AddListForm BoardId="BoardId" OnListAdded="HandleListAdded" />
+        <div data-sortable-ignore="true">
+            <AddListForm BoardId="BoardId" OnListAdded="HandleListAdded" />
+        </div>
     </div>
 }
 else if (loading)
@@ -188,6 +190,7 @@ else
             // it's safe -- and necessary -- to call on every render: a newly added list's
             // .cards-container wouldn't otherwise get picked up.
             await dragModule.InvokeVoidAsync("initCardSorting", listsContainerRef, dotNetRef);
+            await dragModule.InvokeVoidAsync("initListSorting", listsContainerRef, dotNetRef);
         }
 
         // Opening the dialog here (not OnParametersSetAsync) matters: on a deep-linked
@@ -312,6 +315,7 @@ else
         hubConnection.On<dynamic>("CardPriorityChanged", async (data) => await OnCardBadgesChanged(data));
         hubConnection.On<dynamic>("ListCreated", async (data) => await OnListCreated(data));
         hubConnection.On<dynamic>("ListUpdated", async (data) => await OnListUpdated(data));
+        hubConnection.On<dynamic>("ListStateMappingChanged", async (data) => await OnListStateMappingChanged(data));
         hubConnection.On<dynamic>("ListReordered", async (data) => await OnListReordered(data));
         hubConnection.On<dynamic>("ListDeleted", async (data) => await OnListDeleted(data));
         hubConnection.On<dynamic>("LabelAdded", async (data) => await OnCardBadgesChanged(data));
@@ -376,6 +380,30 @@ else
         }
     }
 
+    // Invoked by BoardView.razor.js after a SortableJS column drag ends. orderedListIds is the
+    // board's full post-drop list order read straight from the DOM.
+    [JSInvokable]
+    public async Task OnListDropped(int[] orderedListIds)
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            var positions = orderedListIds
+                .Select((id, index) => (ListId: id, Position: index))
+                .ToList();
+            await ListService.ReorderListsAsync(BoardId, userId, positions);
+
+            await LoadBoardData();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reordering lists: {ex.Message}");
+        }
+    }
+
     private async Task HandleListReordered()
     {
         await LoadBoardData();
@@ -401,6 +429,7 @@ else
     private Task OnCardDeleted(dynamic data) => RefreshAndNotify("A card was removed", ToastKind.Danger);
     private Task OnListCreated(dynamic data) => RefreshAndNotify("A list was added", ToastKind.Success);
     private Task OnListUpdated(dynamic data) => RefreshAndNotify("A list was renamed", ToastKind.Info);
+    private Task OnListStateMappingChanged(dynamic data) => RefreshAndNotify("A list's state mapping was updated", ToastKind.Info);
     private Task OnListReordered(dynamic data) => RefreshAndNotify("Lists were reordered", ToastKind.Info);
     private Task OnListDeleted(dynamic data) => RefreshAndNotify("A list was removed", ToastKind.Danger);
     private Task OnCardBadgesChanged(dynamic data) => RefreshAndNotify("A card was updated", ToastKind.Info);

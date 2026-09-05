@@ -300,6 +300,95 @@ public class CardTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task MoveCard_IntoListWithStateMapping_SetsCardState()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        int targetListId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, State = CardState.NotStarted };
+            dbContext.Cards.Add(card);
+            var list = new List { BoardId = _boardId, Name = "Done List", Position = 1, AssociatedState = CardState.Done };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+            targetListId = list.Id;
+        }
+
+        var request = new MoveCardRequest { TargetListId = targetListId, Position = 0 };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/move", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertContext = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var movedCard = await assertContext.Cards.FirstAsync(c => c.Id == cardId);
+        Assert.Equal(CardState.Done, movedCard.State);
+        Assert.True(movedCard.StateSetAutomatically);
+    }
+
+    [Fact]
+    public async Task MoveCard_IntoListWithoutStateMapping_LeavesCardStateUnchanged()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        int targetListId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, State = CardState.InProgress };
+            dbContext.Cards.Add(card);
+            var list = new List { BoardId = _boardId, Name = "Unmapped List", Position = 1 };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+            targetListId = list.Id;
+        }
+
+        var request = new MoveCardRequest { TargetListId = targetListId, Position = 0 };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/move", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertContext = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var movedCard = await assertContext.Cards.FirstAsync(c => c.Id == cardId);
+        Assert.Equal(CardState.InProgress, movedCard.State);
+    }
+
+    [Fact]
+    public async Task MoveCard_IntoListWithStateMapping_OverridesManuallySetState()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int cardId = 0;
+        int targetListId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var card = new Card { ListId = _listId, Title = "Test Card", Position = 0, State = CardState.Done, StateSetAutomatically = false };
+            dbContext.Cards.Add(card);
+            var list = new List { BoardId = _boardId, Name = "Not Started List", Position = 1, AssociatedState = CardState.NotStarted };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            cardId = card.Id;
+            targetListId = list.Id;
+        }
+
+        var request = new MoveCardRequest { TargetListId = targetListId, Position = 0 };
+        var response = await _client.PostAsJsonAsync($"/api/lists/{_listId}/cards/{cardId}/move", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertContext = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var movedCard = await assertContext.Cards.FirstAsync(c => c.Id == cardId);
+        Assert.Equal(CardState.NotStarted, movedCard.State);
+        Assert.True(movedCard.StateSetAutomatically);
+    }
+
+    [Fact]
     public async Task SoftDeleteCard_ReturnsNoContent()
     {
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));

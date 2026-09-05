@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Kanban.Data;
@@ -184,6 +185,79 @@ public class ListTests : IAsyncLifetime
         var response = await _client.PostAsync($"/api/boards/{_boardId}/lists/{listId}/restore", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetAssociatedState_ReturnsOk_AndPersistsState()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int listId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var list = new List { BoardId = _boardId, Name = "Test List", Position = 0 };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            listId = list.Id;
+        }
+
+        var request = new SetListAssociatedStateRequest { State = CardState.Done };
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/lists/{listId}/state", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertContext = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var updatedList = await assertContext.Lists.FirstAsync(l => l.Id == listId);
+        Assert.Equal(CardState.Done, updatedList.AssociatedState);
+    }
+
+    [Fact]
+    public async Task SetAssociatedState_ToNull_ClearsMapping()
+    {
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_userId));
+
+        int listId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var list = new List { BoardId = _boardId, Name = "Test List", Position = 0, AssociatedState = CardState.InProgress };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            listId = list.Id;
+        }
+
+        var request = new SetListAssociatedStateRequest { State = null };
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/lists/{listId}/state", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var assertScope = _factory.Services.CreateScope();
+        var assertContext = assertScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var updatedList = await assertContext.Lists.FirstAsync(l => l.Id == listId);
+        Assert.Null(updatedList.AssociatedState);
+    }
+
+    [Fact]
+    public async Task SetAssociatedState_AsNonBoardMember_IsRejected()
+    {
+        int listId = 0;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var list = new List { BoardId = _boardId, Name = "Test List", Position = 0 };
+            dbContext.Lists.Add(list);
+            await dbContext.SaveChangesAsync();
+            listId = list.Id;
+        }
+
+        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(_secondUserId));
+
+        var request = new SetListAssociatedStateRequest { State = CardState.Done };
+        var response = await _client.PutAsJsonAsync($"/api/boards/{_boardId}/lists/{listId}/state", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

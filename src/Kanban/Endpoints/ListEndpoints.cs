@@ -26,6 +26,10 @@ public static class ListEndpoints
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        listGroup.MapPut("/{listId}/state", SetListAssociatedState)
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         listGroup.MapPut("/reorder", ReorderLists)
             .Produces(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
@@ -98,6 +102,23 @@ public static class ListEndpoints
         try
         {
             await listService.RenameListAsync(listId, userId, request.Name);
+            return Results.Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("not found") ? Results.NotFound() : Results.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> SetListAssociatedState(HttpContext context, IListService listService, int boardId, int listId, SetListAssociatedStateRequest request)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            await listService.SetAssociatedStateAsync(listId, userId, request.State);
             return Results.Ok();
         }
         catch (InvalidOperationException ex)

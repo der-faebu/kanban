@@ -21,6 +21,7 @@ public interface IBoardSyncService
     Task BroadcastTimeLogEntryDeletedAsync(int boardId, int cardId, int entryId);
     Task BroadcastListCreatedAsync(int boardId, int listId, string name);
     Task BroadcastListUpdatedAsync(int boardId, int listId, string name);
+    Task BroadcastListStateMappingChangedAsync(int boardId, int listId, CardState? state);
     Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions);
     Task BroadcastListDeletedAsync(int boardId, int listId);
     Task BroadcastAssigneeAddedAsync(int boardId, int cardId, string userId);
@@ -135,6 +136,12 @@ public class BoardSyncService(IHubContext<BoardSyncHub> hubContext) : IBoardSync
     {
         await hubContext.Clients.Group($"board-{boardId}")
             .SendAsync("ListUpdated", new { listId, name, timestamp = DateTime.UtcNow });
+    }
+
+    public async Task BroadcastListStateMappingChangedAsync(int boardId, int listId, CardState? state)
+    {
+        await hubContext.Clients.Group($"board-{boardId}")
+            .SendAsync("ListStateMappingChanged", new { listId, state, timestamp = DateTime.UtcNow });
     }
 
     public async Task BroadcastListReorderedAsync(int boardId, List<(int ListId, int Position)> positions)

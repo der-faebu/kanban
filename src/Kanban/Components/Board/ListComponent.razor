@@ -1,15 +1,28 @@
 @using Kanban.Services
 @using Kanban.Data.Entities
 
-<div class="list @(isDraggingList ? "dragging" : "")" draggable="true" @ondragstart="HandleListDragStart" @ondragend="HandleListDragEnd">
+<div class="list" data-list-item-id="@List.Id">
     <div class="list-header">
-        <h2>@List.Name <span class="list-count">@(cards?.Count ?? 0)</span></h2>
+        <h2>
+            @List.Name <span class="list-count">@(cards?.Count ?? 0)</span>
+            @if (List.AssociatedState.HasValue)
+            {
+                <span class="state-mapping-badge" style="@StateBadgeStyle(List.AssociatedState.Value)" title="Cards dropped here are set to @CardStateStyles.Label(List.AssociatedState.Value)">@CardStateStyles.Label(List.AssociatedState.Value)</span>
+            }
+        </h2>
         <div class="list-menu-wrap" @onclick:stopPropagation="true">
             <button type="button" class="list-menu-btn" @onclick="ToggleMenu" title="List options">&#8943;</button>
             @if (showMenu)
             {
                 <div class="list-menu-dropdown">
-                    <button type="button" class="list-menu-item" @onclick="HandleDeleteFromMenu">Delete list</button>
+                    <button type="button" class="list-menu-item danger" @onclick="HandleDeleteFromMenu">Delete list</button>
+                    <div class="list-menu-separator"></div>
+                    <div class="list-menu-label">Sets card state to</div>
+                    <button type="button" class="list-menu-item @(List.AssociatedState is null ? "active" : "")" @onclick="@(() => HandleSetAssociatedState(null))">None</button>
+                    @foreach (var state in stateOptions)
+                    {
+                        <button type="button" class="list-menu-item @(List.AssociatedState == state ? "active" : "")" @onclick="@(() => HandleSetAssociatedState(state))">@CardStateStyles.Label(state)</button>
+                    }
                 </div>
             }
         </div>
@@ -44,13 +57,7 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
-        cursor: grab;
-        user-select: none;
         transition: opacity 0.15s;
-    }
-
-    .list:active {
-        cursor: grabbing;
     }
 
     .list.dragging {
@@ -61,6 +68,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        cursor: grab;
+        user-select: none;
+    }
+
+    .list-header:active {
+        cursor: grabbing;
     }
 
     .list-header h2 {
@@ -132,14 +145,52 @@
         border: none;
         background: transparent;
         border-radius: var(--knb-radius-sm);
-        color: var(--knb-danger);
+        color: var(--knb-text-primary);
         font-size: 13px;
         cursor: pointer;
     }
 
         .list-menu-item:hover {
-            background: var(--knb-danger-subtle);
+            background: var(--knb-bg-surface-hover);
         }
+
+        .list-menu-item.active {
+            font-weight: 600;
+        }
+
+        .list-menu-item.danger {
+            color: var(--knb-danger);
+        }
+
+            .list-menu-item.danger:hover {
+                background: var(--knb-danger-subtle);
+            }
+
+    .list-menu-separator {
+        height: 1px;
+        margin: 4px 0;
+        background: var(--knb-border-subtle);
+    }
+
+    .list-menu-label {
+        padding: 4px 10px 2px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--knb-text-tertiary);
+    }
+
+    .state-mapping-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        padding: 1px 6px;
+        border-radius: var(--knb-radius-full);
+    }
 
     .cards-container {
         display: flex;
@@ -175,13 +226,17 @@
     [Inject]
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
-    [Inject]
-    private DragDropState DragState { get; set; } = null!;
+    private static readonly CardState[] stateOptions = [CardState.NotStarted, CardState.InProgress, CardState.Done];
 
     private List<Card>? cards;
     private string? userId;
-    private bool isDraggingList = false;
     private bool showMenu = false;
+
+    private static string StateBadgeStyle(CardState state)
+    {
+        var (fg, bg) = CardStateStyles.Colors(state);
+        return $"color:{fg};background-color:{bg}";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,18 +261,6 @@
         {
             Console.WriteLine($"Error loading cards: {ex.Message}");
         }
-    }
-
-    private void HandleListDragStart(DragEventArgs e)
-    {
-        e.DataTransfer.EffectAllowed = "move";
-        DragState.DraggedListId = List.Id;
-        isDraggingList = true;
-    }
-
-    private void HandleListDragEnd(DragEventArgs e)
-    {
-        isDraggingList = false;
     }
 
     private async Task HandleCardAdded()
@@ -258,5 +301,23 @@
     {
         showMenu = false;
         await HandleDelete();
+    }
+
+    private async Task HandleSetAssociatedState(CardState? state)
+    {
+        showMenu = false;
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            await ListService.SetAssociatedStateAsync(List.Id, userId, state);
+            List.AssociatedState = state;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error setting list state mapping: {ex.Message}");
+        }
     }
 }

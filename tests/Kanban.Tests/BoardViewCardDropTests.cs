@@ -44,7 +44,6 @@ public class BoardViewCardDropTests : BunitContext, IAsyncLifetime
         RegisterScopedService<IListService>();
         RegisterScopedService<ICardService>();
         RegisterScopedService<IJwtTokenService>();
-        Services.AddScoped<DragDropState>();
 
         var boardService = _scope.ServiceProvider.GetRequiredService<IBoardService>();
         var listService = _scope.ServiceProvider.GetRequiredService<IListService>();

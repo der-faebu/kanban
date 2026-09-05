@@ -10,6 +10,7 @@ public interface IListService
     Task<List?> GetListByIdAsync(int listId, string userId);
     Task<List<List>> GetBoardListsAsync(int boardId, string userId);
     Task RenameListAsync(int listId, string userId, string newName);
+    Task SetAssociatedStateAsync(int listId, string userId, CardState? state);
     Task ReorderListsAsync(int boardId, string userId, List<(int ListId, int Position)> positions);
     Task SoftDeleteListAsync(int listId, string userId);
     Task RestoreListAsync(int listId, string userId);
@@ -95,6 +96,26 @@ public class ListService(IDbContextFactory<ApplicationDbContext> contextFactory,
         list.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         await boardSyncService.BroadcastListUpdatedAsync(boardId, listId, newName);
+    }
+
+    public async Task SetAssociatedStateAsync(int listId, string userId, CardState? state)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var list = await context.Lists.FirstOrDefaultAsync(l => l.Id == listId && !l.IsDeleted);
+
+        if (list == null)
+            throw new InvalidOperationException("List not found");
+
+        var isMember = await boardService.IsUserBoardMemberAsync(list.BoardId, userId);
+        if (!isMember)
+            throw new InvalidOperationException("User is not a board member");
+
+        var boardId = list.BoardId;
+        list.AssociatedState = state;
+        list.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        await boardSyncService.BroadcastListStateMappingChangedAsync(boardId, listId, state);
     }
 
     public async Task ReorderListsAsync(int boardId, string userId, List<(int ListId, int Position)> positions)

@@ -386,6 +386,7 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
 
         var boardId = card.List.BoardId;
         var sourceListId = card.ListId;
+        var parentCardId = card.ParentCardId;
         card.ListId = targetListId;
         card.Position = position;
         card.UpdatedAt = DateTime.UtcNow;
@@ -395,6 +396,18 @@ public class CardService(IDbContextFactory<ApplicationDbContext> contextFactory,
         var metadata = new { sourceListId, targetListId, position };
         await activityLogService.LogAsync(cardId, userId, ActivityType.CardMoved, metadata);
         await boardSyncService.BroadcastActivityLoggedAsync(boardId, cardId, ActivityType.CardMoved, userId, metadata, DateTime.UtcNow);
+
+        // The column always wins: dropping into a list with a state mapping sets the card's
+        // state to match, overriding whatever it had before -- even a manual override.
+        if (targetList.AssociatedState.HasValue)
+        {
+            await using var stateContext = await contextFactory.CreateDbContextAsync();
+            var movedCard = await stateContext.Cards.Include(c => c.List).FirstAsync(c => c.Id == cardId);
+            await PersistStateChangeAsync(stateContext, boardId, movedCard, targetList.AssociatedState.Value, userId, automatic: true);
+
+            if (parentCardId.HasValue)
+                await SyncParentStateAsync(parentCardId.Value, userId);
+        }
     }
 
     public async Task ReorderCardsAsync(int listId, string userId, List<(int CardId, int Position)> positions)

@@ -106,7 +106,6 @@ builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IExternalAccountProvisioner, ExternalAccountProvisioner>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
-builder.Services.AddScoped<DragDropState>();
 builder.Services.AddScoped<ThemeState>();
 
 var app = builder.Build();

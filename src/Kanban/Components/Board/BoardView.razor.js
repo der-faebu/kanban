@@ -1,6 +1,27 @@
 // Card and list/column dragging via SortableJS (wwwroot/js/vendor/Sortable.min.js, loaded
 // globally before this module runs). Replaces native HTML5 DnD for both -- mobile browsers
 // don't fire native drag events for touch, SortableJS polyfills pointer/touch dragging itself.
+//
+// Shared touch-drag tuning: waits for a 500ms hold (within 10px jitter) before arming a drag, so
+// a swipe-to-scroll gesture isn't mistaken for picking up a card/column; widens SortableJS's
+// default auto-scroll edge zone/speed since a held finger rarely reaches its 30px mouse-tuned
+// default; buzzes once the drag actually arms as a no-visual-cue confirmation. Most modern mobile
+// browsers dispatch pointer events (not touch events) for touch input, hence checking
+// pointerType alongside event.type.
+const touchDragOptions = {
+    delay: 500,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 10,
+    scrollSensitivity: 60,
+    scrollSpeed: 15,
+    onChoose: (evt) => {
+        const isTouch = evt.originalEvent?.pointerType === 'touch' || evt.originalEvent?.type?.startsWith('touch');
+        if (isTouch && navigator.vibrate) {
+            navigator.vibrate(15);
+        }
+    },
+};
+
 export function initCardSorting(rootElement, dotNetRef) {
     const containers = rootElement.querySelectorAll('.cards-container:not([data-sortable-initialized])');
     containers.forEach((container) => {
@@ -10,6 +31,7 @@ export function initCardSorting(rootElement, dotNetRef) {
             animation: 150,
             ghostClass: 'dragging',
             filter: '[data-sortable-ignore]',
+            ...touchDragOptions,
             onEnd: (evt) => {
                 const cardId = parseInt(evt.item.dataset.cardId, 10);
                 if (Number.isNaN(cardId)) {
@@ -41,6 +63,7 @@ export function initListSorting(rootElement, dotNetRef) {
         ghostClass: 'dragging',
         handle: '.list-header',
         filter: '[data-sortable-ignore]',
+        ...touchDragOptions,
         onEnd: (evt) => {
             const orderedListIds = Array.from(evt.to.children)
                 .filter((el) => el.dataset && el.dataset.listItemId)

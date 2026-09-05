@@ -110,18 +110,6 @@ public class AuthenticationTests : IAsyncLifetime
         Assert.Contains("Invalid login attempt", responseContent);
     }
 
-    private async Task RegisterUser(string email, string password)
-    {
-        var registerPage = await _client.GetAsync("/Account/Register");
-        var registerContent = await registerPage.Content.ReadAsStringAsync();
-        var registerDocument = await _context.OpenAsync(req => req.Content(registerContent));
-
-        var formData = IdentityFormTestHelpers.GetHiddenFormFields(registerDocument);
-        formData["Input.Email"] = email;
-        formData["Input.Password"] = password;
-        formData["Input.ConfirmPassword"] = password;
-
-        var content = new FormUrlEncodedContent(formData);
-        await _client.PostAsync("/Account/Register", content);
-    }
+    private async Task RegisterUser(string email, string password) =>
+        await IdentityFormTestHelpers.RegisterUserAsync(_client, email, password);
 }

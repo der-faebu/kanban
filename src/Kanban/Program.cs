@@ -76,9 +76,13 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.SignIn.RequireConfirmedAccount = true;
         options.Stores.SchemaVersion = IdentitySchemaVersions.Version2;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AdminRoleSeeder.AdminPolicyName, policy => policy.RequireRole(AdminRoleSeeder.AdminRoleName));
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
@@ -102,6 +106,11 @@ builder.Services.AddScoped<DragDropState>();
 builder.Services.AddScoped<ThemeState>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    await AdminRoleSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

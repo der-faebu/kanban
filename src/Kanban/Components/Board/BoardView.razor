@@ -21,7 +21,7 @@
         <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Label" OnClick="OpenManageLabels">Manage labels</MudButton>
     </div>
 
-    <div class="flex gap-5 overflow-x-auto pb-3" ondragover="event.preventDefault()">
+    <div class="flex gap-5 overflow-x-auto pb-3" ondragover="event.preventDefault()" @ref="listsContainerRef">
         @if (lists != null)
         {
             @foreach (var list in lists.OrderBy(l => l.Position))
@@ -109,6 +109,12 @@ else
     private IListService ListService { get; set; } = null!;
 
     [Inject]
+    private ICardService CardService { get; set; } = null!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
+
+    [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
 
     [Inject]
@@ -127,6 +133,9 @@ else
     private HubConnection? hubConnection;
     private int? openDialogForCardId;
     private bool closingCardDialog;
+    private ElementReference listsContainerRef;
+    private DotNetObjectReference<BoardView>? dotNetRef;
+    private IJSObjectReference? dragModule;
     private readonly System.Collections.Generic.List<ToastMessage> toasts = [];
 
     private enum ToastKind { Success, Info, Danger }
@@ -170,6 +179,17 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (lists != null)
+        {
+            dragModule ??= await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./Components/Board/BoardView.razor.js");
+            dotNetRef ??= DotNetObjectReference.Create(this);
+
+            // Idempotent on the JS side (skips containers already flagged as initialized), so
+            // it's safe -- and necessary -- to call on every render: a newly added list's
+            // .cards-container wouldn't otherwise get picked up.
+            await dragModule.InvokeVoidAsync("initCardSorting", listsContainerRef, dotNetRef);
+        }
+
         // Opening the dialog here (not OnParametersSetAsync) matters: on a deep-linked
         // first load, BoardView is still mid-streaming-render ([StreamRendering]), and
         // MudDialogProvider (in MainLayout) hasn't finished registering its component ID
@@ -324,6 +344,38 @@ else
         StateHasChanged();
     }
 
+    // Invoked by BoardView.razor.js after a SortableJS drag ends. orderedCardIds is the
+    // destination list's full post-drop card order (read straight from the DOM), so the
+    // resulting positions always match what the user just saw, regardless of the drag's
+    // starting position — same-list reorders and cross-list moves both funnel through here.
+    [JSInvokable]
+    public async Task OnCardDropped(int cardId, int fromListId, int toListId, int[] orderedCardIds)
+    {
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        try
+        {
+            if (fromListId != toListId)
+            {
+                var newPosition = Array.IndexOf(orderedCardIds, cardId);
+                await CardService.MoveCardAsync(cardId, userId, toListId, newPosition < 0 ? orderedCardIds.Length : newPosition);
+            }
+
+            var positions = orderedCardIds
+                .Select((id, index) => (CardId: id, Position: index))
+                .ToList();
+            await CardService.ReorderCardsAsync(toListId, userId, positions);
+
+            await LoadBoardData();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error moving card: {ex.Message}");
+        }
+    }
+
     private async Task HandleListReordered()
     {
         await LoadBoardData();
@@ -358,6 +410,21 @@ else
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();
+        }
+
+        dotNetRef?.Dispose();
+
+        if (dragModule is not null)
+        {
+            try
+            {
+                await dragModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone (e.g. the browser navigated away) -- nothing
+                // left to clean up client-side.
+            }
         }
     }
 }

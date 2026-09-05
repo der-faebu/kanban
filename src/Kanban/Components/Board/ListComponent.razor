@@ -15,21 +15,22 @@
         </div>
     </div>
 
-    <div class="cards-container @(isDragOverCards ? "drag-over" : "")" @ondragover="HandleCardDragOver" @ondragover:preventDefault="true" @ondrop="HandleCardDrop" @ondragleave="HandleCardDragLeave">
+    <div class="cards-container" data-list-id="@List.Id">
         @if (cards != null)
         {
             @foreach (var card in cards.OrderBy(c => c.Position))
             {
                 <CardComponent
                     Card="card"
-                    ListId="List.Id"
                     BoardId="BoardId"
                     BoardName="@BoardName"
                     OnCardMoved="HandleCardMoved"
                     @key="card.Id" />
             }
         }
-        <AddCardForm ListId="List.Id" OnCardAdded="HandleCardAdded" />
+        <div data-sortable-ignore="true">
+            <AddCardForm ListId="List.Id" OnCardAdded="HandleCardAdded" />
+        </div>
     </div>
 </div>
 
@@ -146,12 +147,6 @@
         gap: 8px;
         min-height: 50px;
         border-radius: var(--knb-radius-md);
-        transition: background-color 0.15s;
-    }
-
-    .cards-container.drag-over {
-        background: var(--knb-accent-subtle);
-        padding: 4px;
     }
 </style>
 
@@ -185,7 +180,6 @@
 
     private List<Card>? cards;
     private string? userId;
-    private bool isDragOverCards = false;
     private bool isDraggingList = false;
     private bool showMenu = false;
 
@@ -224,42 +218,6 @@
     private void HandleListDragEnd(DragEventArgs e)
     {
         isDraggingList = false;
-    }
-
-    private void HandleCardDragOver(DragEventArgs e)
-    {
-        e.DataTransfer.DropEffect = "move";
-        isDragOverCards = true;
-    }
-
-    private void HandleCardDragLeave(DragEventArgs e)
-    {
-        isDragOverCards = false;
-    }
-
-    private async Task HandleCardDrop(DragEventArgs e)
-    {
-        isDragOverCards = false;
-        var cardId = DragState.DraggedCardId;
-        if (cardId.HasValue && !string.IsNullOrEmpty(userId))
-        {
-            try
-            {
-                var newPosition = cards?.Count ?? 0;
-                await CardService.MoveCardAsync(cardId.Value, userId, List.Id, newPosition);
-                await LoadCards();
-                await OnCardMoved.InvokeAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error moving card: {ex.Message}");
-            }
-            finally
-            {
-                DragState.DraggedCardId = null;
-                DragState.SourceListId = null;
-            }
-        }
     }
 
     private async Task HandleCardAdded()

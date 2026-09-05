@@ -2,7 +2,7 @@
 @using Kanban.Data
 @using Kanban.Data.Entities
 
-<div class="card @(isDragging ? "dragging" : "")" draggable="true" @ondragstart="HandleDragStart" @ondragend="HandleDragEnd" @onclick="OpenCard">
+<div class="card" data-card-id="@Card.Id" @onclick="OpenCard">
     <div class="card-content">
         @if (labels.Count > 0 || projects.Count > 0)
         {
@@ -235,9 +235,6 @@
     public Card Card { get; set; } = null!;
 
     [Parameter]
-    public int ListId { get; set; }
-
-    [Parameter]
     public int BoardId { get; set; }
 
     [Parameter]
@@ -262,9 +259,6 @@
     private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
 
     [Inject]
-    private DragDropState DragState { get; set; } = null!;
-
-    [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
 
     private string? userId;
@@ -277,7 +271,6 @@
     private int attachmentCount;
     private int subCardDone;
     private int subCardTotal;
-    private bool isDragging;
 
     protected override async Task OnInitializedAsync()
     {
@@ -342,19 +335,6 @@
     private void OpenCard()
     {
         NavigationManager.NavigateTo($"/board/{BoardId}/card/{Card.Id}");
-    }
-
-    private void HandleDragStart(DragEventArgs e)
-    {
-        e.DataTransfer.EffectAllowed = "move";
-        DragState.DraggedCardId = Card.Id;
-        DragState.SourceListId = ListId;
-        isDragging = true;
-    }
-
-    private void HandleDragEnd(DragEventArgs e)
-    {
-        isDragging = false;
     }
 
     private async Task HandleToggleClose()

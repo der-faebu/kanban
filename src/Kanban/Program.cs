@@ -103,6 +103,7 @@ builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.Configure<AttachmentsOptions>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
+builder.Services.AddScoped<IBoardExportService, BoardExportService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IExternalAccountProvisioner, ExternalAccountProvisioner>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();

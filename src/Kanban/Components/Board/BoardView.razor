@@ -18,7 +18,13 @@
                 <MudText Typo="Typo.body2" Class="text-ink-muted">@board.Description</MudText>
             }
         </div>
-        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Label" OnClick="OpenManageLabels">Manage labels</MudButton>
+        <div class="flex gap-2">
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Label" OnClick="OpenManageLabels">Manage labels</MudButton>
+            @if (board.OwnerId == userId)
+            {
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Download" Href="@($"/api/boards/{BoardId}/export")" Target="_blank">Export board</MudButton>
+            }
+        </div>
     </div>
 
     <div class="flex gap-5 overflow-x-auto pb-3" @ref="listsContainerRef">

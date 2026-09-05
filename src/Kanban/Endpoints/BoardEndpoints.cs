@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Kanban.Data;
 using Kanban.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 
 namespace Kanban.Endpoints;
 
@@ -47,6 +48,19 @@ public static class BoardEndpoints
         boardGroup.MapPost("/{boardId}/members/resolve-names", ResolveUserNames)
             .Produces<List<object>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        // A plain browser navigation (an <a href> click) carries the app's Identity cookie, not
+        // a JWT bearer token, so this accepts both schemes -- same convention as the attachment
+        // download endpoint -- letting the export link work from the browser while the rest of
+        // the API stays JWT-only.
+        app.MapGet("/api/boards/{boardId}/export", ExportBoard)
+            .RequireAuthorization(policy => policy
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
+                .RequireAuthenticatedUser())
+            .DisableAntiforgery()
+            .Produces(StatusCodes.Status200OK, contentType: "application/zip")
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status403Forbidden);
     }
 
     private static async Task<IResult> CreateBoard(HttpContext context, IBoardService boardService, CreateBoardRequest request)
@@ -167,6 +181,23 @@ public static class BoardEndpoints
         catch (InvalidOperationException)
         {
             return Results.NotFound();
+        }
+    }
+
+    private static async Task<IResult> ExportBoard(HttpContext context, IBoardExportService boardExportService, int boardId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        try
+        {
+            var (zip, boardName) = await boardExportService.ExportBoardAsync(boardId, userId);
+            return Results.Stream(zip, "application/zip", $"{boardName}.zip");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ex.Message.Contains("owner") ? Results.Forbid(authenticationSchemes: [JwtBearerDefaults.AuthenticationScheme]) : Results.NotFound();
         }
     }
 

@@ -237,16 +237,7 @@ public class PasskeyTests : IAsyncLifetime
 
     private async Task<string> RegisterAndLoginAsync(string email, string password)
     {
-        var registerPage = await _client.GetAsync("/Account/Register");
-        var registerContent = await registerPage.Content.ReadAsStringAsync();
-        var registerDocument = await _context.OpenAsync(req => req.Content(registerContent));
-
-        var formData = IdentityFormTestHelpers.GetHiddenFormFields(registerDocument);
-        formData["Input.Email"] = email;
-        formData["Input.Password"] = password;
-        formData["Input.ConfirmPassword"] = password;
-
-        await _client.PostAsync("/Account/Register", new FormUrlEncodedContent(formData));
+        await IdentityFormTestHelpers.RegisterUserAsync(_client, email, password);
 
         using (var confirmScope = _factory.Services.CreateScope())
         {

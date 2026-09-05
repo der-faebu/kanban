@@ -1,0 +1,126 @@
+@using Kanban.Data.Dtos
+@using Kanban.Services
+@inject IBoardImportService BoardImportService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="flex flex-col gap-4">
+    <MudTextField
+        @bind-Value="newBoardName"
+        Label="New board name"
+        Placeholder="e.g. My Restored Board"
+        Variant="Variant.Outlined"
+        Margin="Margin.Dense"
+        FullWidth="true"
+        Disabled="isLoading" />
+
+    <div>
+        <MudText Typo="Typo.body2" Class="text-ink-muted mb-1">Select exported board zip</MudText>
+        <InputFile
+            id="kanbanExportFile"
+            accept=".zip"
+            OnChange="OnFileSelected"
+            disabled="@isLoading"
+            class="block w-full text-sm text-ink-muted file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-2 file:text-ink hover:file:bg-surface-hover" />
+    </div>
+
+    @if (selectedFile != null)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true">Selected: @selectedFile.Name</MudAlert>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true">@errorMessage</MudAlert>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <MudAlert Severity="Severity.Success" Dense="true">@successMessage</MudAlert>
+    }
+
+    <MudButton
+        Variant="Variant.Filled"
+        Color="Color.Primary"
+        OnClick="UploadFile"
+        Disabled="@(selectedFile == null || string.IsNullOrWhiteSpace(newBoardName) || isLoading)">
+        @if (isLoading)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            <span>Importing...</span>
+        }
+        else
+        {
+            <span>Import</span>
+        }
+    </MudButton>
+</div>
+
+@code {
+    private const long MaxFileSizeBytes = 200 * 1024 * 1024;
+
+    [Parameter]
+    public EventCallback<BoardImportResult> OnImportComplete { get; set; }
+
+    private IBrowserFile? selectedFile;
+    private string newBoardName = string.Empty;
+    private bool isLoading = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        errorMessage = null;
+        successMessage = null;
+        selectedFile = e.File;
+
+        if (selectedFile.Size > MaxFileSizeBytes)
+        {
+            errorMessage = "File size must be less than 200 MB";
+            selectedFile = null;
+        }
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null || string.IsNullOrWhiteSpace(newBoardName))
+            return;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            errorMessage = "You must be signed in to import a board";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await using var fileStream = selectedFile.OpenReadStream(MaxFileSizeBytes);
+            var result = await BoardImportService.ImportBoardAsync(userId, fileStream, newBoardName);
+
+            if (result.Success)
+            {
+                successMessage = result.Message;
+                selectedFile = null;
+                newBoardName = string.Empty;
+                await OnImportComplete.InvokeAsync(result);
+            }
+            else
+            {
+                errorMessage = result.Message ?? "Import failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error importing file: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

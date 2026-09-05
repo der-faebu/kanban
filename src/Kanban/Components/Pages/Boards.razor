@@ -14,6 +14,7 @@
         <div class="flex gap-2">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="ToggleNewBoardForm">New Board</MudButton>
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="ToggleImportForm">Import from Trello</MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Restore" OnClick="ToggleKanbanImportForm">Restore from export</MudButton>
         </div>
     </div>
 
@@ -39,6 +40,16 @@
             <MudText Typo="Typo.body2" Class="text-ink-muted mb-3">Importing always creates a new board from the Trello export.</MudText>
             <ImportTrelloForm OnImportComplete="HandleImportComplete" />
             <MudButton Variant="Variant.Text" OnClick="ToggleImportForm" Class="mt-3">Cancel</MudButton>
+        </MudPaper>
+    }
+
+    @if (showKanbanImportForm)
+    {
+        <MudPaper Outlined="true" Class="mb-6 pa-4">
+            <MudText Typo="Typo.h6" Class="mb-1">Restore Board from Export</MudText>
+            <MudText Typo="Typo.body2" Class="text-ink-muted mb-3">Restoring always creates a new board from the export zip; it never overwrites an existing board.</MudText>
+            <ImportKanbanExportForm OnImportComplete="HandleKanbanImportComplete" />
+            <MudButton Variant="Variant.Text" OnClick="ToggleKanbanImportForm" Class="mt-3">Cancel</MudButton>
         </MudPaper>
     }
 
@@ -118,6 +129,7 @@
     private bool loading = true;
     private bool showNewBoardForm = false;
     private bool showImportForm = false;
+    private bool showKanbanImportForm = false;
     private string? userId;
     private Board newBoard = new();
 
@@ -207,6 +219,20 @@
         {
             await LoadBoards();
             showImportForm = false;
+        }
+    }
+
+    private void ToggleKanbanImportForm()
+    {
+        showKanbanImportForm = !showKanbanImportForm;
+    }
+
+    private async Task HandleKanbanImportComplete(BoardImportResult result)
+    {
+        if (result.Success)
+        {
+            await LoadBoards();
+            showKanbanImportForm = false;
         }
     }
 }

@@ -104,6 +104,7 @@ builder.Services.Configure<AttachmentsOptions>(builder.Configuration.GetSection(
 builder.Services.AddScoped<IBoardSyncService, BoardSyncService>();
 builder.Services.AddScoped<ITrelloImportService, TrelloImportService>();
 builder.Services.AddScoped<IBoardExportService, BoardExportService>();
+builder.Services.AddScoped<IBoardImportService, BoardImportService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IExternalAccountProvisioner, ExternalAccountProvisioner>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
@@ -156,6 +157,7 @@ app.MapChecklistEndpoints();
 app.MapAttachmentEndpoints();
 app.MapActivityLogEndpoints();
 app.MapTrelloImportEndpoints();
+app.MapBoardImportEndpoints();
 
 // Map SignalR hubs
 app.MapHub<BoardSyncHub>("/sync");

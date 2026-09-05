@@ -47,10 +47,26 @@ const touchDragOptions = {
 // 'kanban-cards'). Reverting the DOM synchronously inside onEnd raced that cleanup and corrupted
 // the shared state, breaking dragging on every other column until a full page reload. Running
 // after a setTimeout(0) lets Sortable's own transaction fully close out first.
+//
+// Guarded against the node having already moved on again by the time the timeout fires (e.g. a
+// second render already reconciled it, or the user started a fresh drag on it) -- forcing a stale
+// insertBefore onto a node that's no longer where we left it is exactly the kind of DOM mutation
+// this function exists to avoid causing elsewhere.
 function revertDomMove(evt) {
     setTimeout(() => {
+        if (!evt.item.isConnected || evt.item.parentNode !== evt.from) {
+            return;
+        }
         evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
     }, 0);
+}
+
+// A hold-and-release-without-moving still fires onEnd with oldIndex === newIndex in the same list
+// (arming the 500ms delay is enough). Nothing changed, so skip both the DOM revert and the round
+// trip to .NET -- persisting a no-op order is wasted work, and reverting it is a DOM mutation with
+// no upside, only the same fight-with-Blazor risk the revert itself exists to prevent.
+function isNoopDrag(evt) {
+    return evt.from === evt.to && evt.oldIndex === evt.newIndex;
 }
 
 export function initCardSorting(rootElement, dotNetRef) {
@@ -64,6 +80,10 @@ export function initCardSorting(rootElement, dotNetRef) {
             filter: '[data-sortable-ignore]',
             ...touchDragOptions,
             onEnd: (evt) => {
+                if (isNoopDrag(evt)) {
+                    return;
+                }
+
                 const cardId = parseInt(evt.item.dataset.cardId, 10);
                 if (Number.isNaN(cardId)) {
                     return;
@@ -97,6 +117,10 @@ export function initListSorting(rootElement, dotNetRef) {
         filter: '[data-sortable-ignore]',
         ...touchDragOptions,
         onEnd: (evt) => {
+            if (isNoopDrag(evt)) {
+                return;
+            }
+
             const orderedListIds = Array.from(evt.to.children)
                 .filter((el) => el.dataset && el.dataset.listItemId)
                 .map((el) => parseInt(el.dataset.listItemId, 10));

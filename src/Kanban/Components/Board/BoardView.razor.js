@@ -12,12 +12,17 @@
 // Also toggles a body-level class for the chosen/dragging duration: CardComponent's hover-lift
 // effect transitions `transform`, and that same transition otherwise fights every position update
 // SortableJS applies while tracking the pointer, making the card visibly lag behind the finger.
+//
+// forceAutoScrollFallback forces SortableJS's own JS-driven autoscroll loop instead of relying on
+// the browser's native autoscroll-while-dragging, which real touchscreens frequently never invoke
+// at all (a widely reported SortableJS/mobile gap, not specific to this app).
 const touchDragOptions = {
     delay: 500,
     delayOnTouchOnly: true,
     touchStartThreshold: 10,
     scrollSensitivity: 60,
     scrollSpeed: 15,
+    forceAutoScrollFallback: true,
     onChoose: (evt) => {
         document.body.classList.add('kanban-drag-active');
         const isTouch = evt.originalEvent?.pointerType === 'touch' || evt.originalEvent?.type?.startsWith('touch');
@@ -29,6 +34,16 @@ const touchDragOptions = {
         document.body.classList.remove('kanban-drag-active');
     },
 };
+
+// SortableJS physically moves the dragged element in the DOM as part of the drag gesture. Blazor
+// doesn't know that happened, so once our .invokeMethodAsync call round-trips and Blazor re-renders
+// with the confirmed new order, its diff fights the mutation SortableJS already made -- leaving the
+// moved element's listeners/attributes in a state where it can't be picked up again. Reverting the
+// DOM back to its pre-drag shape here makes Blazor's own re-render the only thing that actually
+// commits the move, so there's only ever one party mutating the tree.
+function revertDomMove(evt) {
+    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+}
 
 export function initCardSorting(rootElement, dotNetRef) {
     const containers = rootElement.querySelectorAll('.cards-container:not([data-sortable-initialized])');
@@ -52,6 +67,7 @@ export function initCardSorting(rootElement, dotNetRef) {
                     .filter((el) => el.dataset && el.dataset.cardId)
                     .map((el) => parseInt(el.dataset.cardId, 10));
 
+                revertDomMove(evt);
                 dotNetRef.invokeMethodAsync('OnCardDropped', cardId, fromListId, toListId, orderedCardIds);
             },
         });
@@ -77,6 +93,7 @@ export function initListSorting(rootElement, dotNetRef) {
                 .filter((el) => el.dataset && el.dataset.listItemId)
                 .map((el) => parseInt(el.dataset.listItemId, 10));
 
+            revertDomMove(evt);
             dotNetRef.invokeMethodAsync('OnListDropped', orderedListIds);
         },
     });

@@ -72,7 +72,7 @@
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Href="@($"/board/{board.Id}")">Open</MudButton>
                             @if (IsOwner(board))
                             {
-                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => HandleDeleteBoard(board.Id)">Delete</MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" OnClick="() => HandleDeleteBoard(board)">Delete</MudButton>
                             }
                         </MudCardActions>
                     </MudCard>
@@ -124,6 +124,9 @@
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = null!;
+
+    [Inject]
+    private IDialogService DialogService { get; set; } = null!;
 
     private List<Board>? boards;
     private bool loading = true;
@@ -187,14 +190,23 @@
         }
     }
 
-    private async Task HandleDeleteBoard(int boardId)
+    private async Task HandleDeleteBoard(Board board)
     {
         if (string.IsNullOrEmpty(userId))
             return;
 
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Board",
+            $"Are you sure you want to delete \"{board.Name}\"? This cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed != true)
+            return;
+
         try
         {
-            await BoardService.DeleteBoardAsync(boardId, userId);
+            await BoardService.DeleteBoardAsync(board.Id, userId);
             await LoadBoards();
         }
         catch (Exception ex)
